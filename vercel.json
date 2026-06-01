@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/cronManha",
+      "dest": "/api/cronManha.js"
+    },
+    {
+      "src": "/api/cronNoite",
+      "dest": "/api/cronNoite.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.js"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cronManha",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cronNoite",
+      "schedule": "0 23 * * *"
+    }
+  ]
+}

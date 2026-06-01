@@ -132,3 +132,4 @@ Supabase (obrigatorio para cadastro e cron):
 ## Licenca
 Uso restrito. Este codigo nao pode ser utilizado por terceiros sem autorizacao expressa do titular.
 # Push-Deorg-Direcao
+# Push-Deorg-Direcao

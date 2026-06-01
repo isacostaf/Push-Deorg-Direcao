@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/check",
+      "schedule": "0 11 * * 1-5"
+    }
+  ],
+  "functions": {
+    "api/cron/check.js": {
+      "maxDuration": 120
+    }
+  }
+}

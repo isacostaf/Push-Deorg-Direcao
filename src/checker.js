@@ -15,6 +15,14 @@ function getTodayBR() {
   return `${day}-${month}-${year}`;
 }
 
+// ----------------------------------
+// APENAS TESTE
+// FUNCAO PARA RODAR DATA ESPECIFICA
+// DESCOMENTAR OU COMENTAR
+// function getTodayBR() {
+//   return '01-06-2026';
+// }
+
 function buildUrl(processCode, dateStr) {
   const encoded = encodeURIComponent(`" ${processCode}"`);
 

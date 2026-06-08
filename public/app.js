@@ -13,11 +13,33 @@ const resetBtn = document.getElementById('reset-btn');
 const retryBtn = document.getElementById('retry-btn');
 const progressFill = document.getElementById('progress-fill');
 const loadingProgress = document.getElementById('loading-progress');
+const lastUploadEl = document.getElementById('last-upload');
+const lastExportEl = document.getElementById('last-export');
 
 const BATCH_SIZE = 5;
 
 let selectedFile = null;
 let resultBlob = null;
+
+async function fetchTimestamps() {
+  try {
+    const response = await fetch('/api/timestamps');
+    const data = await response.json();
+    lastUploadEl.textContent = data.lastUpload || '-';
+    lastExportEl.textContent = data.lastExport || '-';
+  } catch (err) {
+    console.error('Erro ao buscar timestamps:', err);
+  }
+}
+
+async function recordExport() {
+  try {
+    await fetch('/api/record-export', { method: 'POST' });
+    await fetchTimestamps();
+  } catch (err) {
+    console.error('Erro ao registrar export:', err);
+  }
+}
 
 function showSection(section) {
   [uploadSection, loadingSection, resultSection, errorSection].forEach(el => {
@@ -192,6 +214,7 @@ async function processFile() {
 
     const found = allResults.filter(r => r.found).length;
     resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
+    await fetchTimestamps();
     showSection(resultSection);
   } catch (err) {
     errorMessage.textContent = err.message;
@@ -210,6 +233,8 @@ function downloadResult() {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+
+  recordExport();
 }
 
 fileInput.addEventListener('change', () => {
@@ -235,3 +260,5 @@ processBtn.addEventListener('click', processFile);
 downloadBtn.addEventListener('click', downloadResult);
 resetBtn.addEventListener('click', reset);
 retryBtn.addEventListener('click', reset);
+
+fetchTimestamps();

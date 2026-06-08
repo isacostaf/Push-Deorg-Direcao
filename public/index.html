@@ -19,6 +19,16 @@
       <p class="subtitle">
         Envie sua planilha com os códigos na coluna B e receba o resultado da consulta ao DOU.
       </p>
+      <!-- <div class="timestamps">
+        <p class="timestamp-item">
+          <span class="timestamp-label">Última vez subido:</span>
+          <span class="timestamp-value" id="last-upload">-</span>
+        </p>
+        <p class="timestamp-item">
+          <span class="timestamp-label">Última vez exportado:</span>
+          <span class="timestamp-value" id="last-export">-</span>
+        </p>
+      </div> -->
     </header>
 
     <section class="card" id="upload-section">
@@ -75,6 +85,18 @@
       <p class="error-message" id="error-message"></p>
       <button class="btn btn-ghost" id="retry-btn">Tentar novamente</button>
     </section>
+
+    <div class="timestamps">
+        <p class="timestamp-item">
+          <span class="timestamp-label">Última vez subido:</span>
+          <span class="timestamp-value" id="last-upload">-</span>
+        </p>
+        <p class="timestamp-item">
+          <span class="timestamp-label">Última vez exportado:</span>
+          <span class="timestamp-value" id="last-export">-</span>
+        </p>
+      </div>
+      
   </main>
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>

@@ -38,22 +38,11 @@ function buildUrl(processCode, dateStr) {
 }
 
 /**
- * Lê os códigos de processo da planilha
- * processos.xlsx (coluna B).
+ * Extrai códigos de processo da coluna B (ignora cabeçalho).
  */
-function readProcessCodes() {
-  const xlsxPath = path.join(process.cwd(), 'processos.xlsx');
-
-  const wb = xlsx.readFile(xlsxPath);
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-
-  const rows = xlsx.utils.sheet_to_json(sheet, {
-    header: 1,
-  });
-
+function readProcessCodesFromRows(rows) {
   const codes = [];
 
-  // Ignora cabeçalho
   for (const row of rows.slice(1)) {
     if (
       row &&
@@ -66,6 +55,25 @@ function readProcessCodes() {
   }
 
   return codes;
+}
+
+/**
+ * Lê os códigos de processo da planilha
+ * processos.xlsx (coluna B).
+ */
+function readProcessCodes() {
+  const xlsxPath = path.join(process.cwd(), 'processos.xlsx');
+  const wb = xlsx.readFile(xlsxPath);
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+  return readProcessCodesFromRows(rows);
+}
+
+function readProcessCodesFromBuffer(buffer) {
+  const wb = xlsx.read(buffer, { type: 'buffer' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+  return { wb, codes: readProcessCodesFromRows(rows) };
 }
 
 /**
@@ -125,27 +133,16 @@ async function checkProcess(processCode, dateStr) {
 }
 
 /**
- * Salva uma nova planilha contendo
- * o resultado da verificação na coluna C.
+ * Aplica os resultados da verificação na coluna C da planilha.
  */
-function saveResultsSpreadsheet(results) {
-  const inputPath = path.join(process.cwd(), 'processos.xlsx');
-  const outputPath = path.join(process.cwd(), 'processos_resultado.xlsx');
-
-  const wb = xlsx.readFile(inputPath);
+function applyResultsToWorkbook(wb, results) {
   const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-  const rows = xlsx.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: '',
-  });
-
-  // Cabeçalho da coluna C
   rows[0][2] = 'check';
 
-  // Preenche resultados
   results.forEach((result, index) => {
-    const rowIndex = index + 1; // linha 2 da planilha
+    const rowIndex = index + 1;
 
     if (!rows[rowIndex]) {
       rows[rowIndex] = [];
@@ -154,32 +151,18 @@ function saveResultsSpreadsheet(results) {
     rows[rowIndex][2] = result.found ? 'sim' : 'nao';
   });
 
-  const newSheet = xlsx.utils.aoa_to_sheet(rows);
-
-  wb.Sheets[wb.SheetNames[0]] = newSheet;
-
-  xlsx.writeFile(wb, outputPath);
-
-  console.log(`📄 Resultado salvo em ${outputPath}`);
+  wb.Sheets[wb.SheetNames[0]] = xlsx.utils.aoa_to_sheet(rows);
+  return wb;
 }
 
-function markDuplicatesInResultSheet() {
-  const filePath = path.join(process.cwd(), 'processos_resultado.xlsx');
-
-  const wb = xlsx.readFile(filePath);
+function markDuplicatesInWorkbook(wb) {
   const sheet = wb.Sheets[wb.SheetNames[0]];
-
-  const rows = xlsx.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: '',
-  });
+  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
   const header = rows[0];
   const data = rows.slice(1);
-
   const countMap = new Map();
 
-  // 1. conta apenas "sim"
   for (const row of data) {
     const process = row[1];
     const status = String(row[2] || '').toLowerCase();
@@ -189,7 +172,6 @@ function markDuplicatesInResultSheet() {
     }
   }
 
-  // 2. marca duplicados
   for (const row of data) {
     const process = row[1];
     const status = String(row[2] || '').toLowerCase();
@@ -199,13 +181,64 @@ function markDuplicatesInResultSheet() {
     }
   }
 
-  // 3. salva de volta
-  const newSheet = xlsx.utils.aoa_to_sheet([header, ...data]);
-  wb.Sheets[wb.SheetNames[0]] = newSheet;
+  wb.Sheets[wb.SheetNames[0]] = xlsx.utils.aoa_to_sheet([header, ...data]);
+  return wb;
+}
 
-  xlsx.writeFile(wb, filePath);
+/**
+ * Salva uma nova planilha contendo
+ * o resultado da verificação na coluna C.
+ */
+function saveResultsSpreadsheet(results) {
+  const inputPath = path.join(process.cwd(), 'processos.xlsx');
+  const outputPath = path.join(process.cwd(), 'processos_resultado.xlsx');
 
-  console.log('🧠 Duplicados analisados e atualizados no Excel.');
+  const wb = xlsx.readFile(inputPath);
+  applyResultsToWorkbook(wb, results);
+  markDuplicatesInWorkbook(wb);
+  xlsx.writeFile(wb, outputPath);
+
+  console.log(`📄 Resultado salvo em ${outputPath}`);
+}
+
+async function checkAllProcesses(codes, dateStr) {
+  const results = [];
+
+  for (const code of codes) {
+    console.log(`🔍 Verificando: ${code}`);
+
+    const result = await checkProcess(code, dateStr);
+    results.push(result);
+
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+
+  return results;
+}
+
+/**
+ * Processa um arquivo Excel enviado pelo usuário
+ * e retorna o buffer da planilha de resultados.
+ */
+async function runChecksFromBuffer(buffer) {
+  const dateStr = getTodayBR();
+  const { wb, codes } = readProcessCodesFromBuffer(buffer);
+
+  if (codes.length === 0) {
+    throw new Error('Nenhum código de processo encontrado na planilha.');
+  }
+
+  console.log(`📅 Data de hoje (BR): ${dateStr}`);
+  console.log(`📋 ${codes.length} processo(s) encontrado(s)\n`);
+
+  const results = await checkAllProcesses(codes, dateStr);
+
+  applyResultsToWorkbook(wb, results);
+  markDuplicatesInWorkbook(wb);
+
+  const outputBuffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  return { date: dateStr, results, outputBuffer };
 }
 
 /**
@@ -218,37 +251,21 @@ async function runChecks() {
   const codes = readProcessCodes();
 
   if (codes.length === 0) {
-    throw new Error(
-      'Nenhum código de processo encontrado na planilha.'
-    );
+    throw new Error('Nenhum código de processo encontrado na planilha.');
   }
 
   console.log(`📅 Data de hoje (BR): ${dateStr}`);
   console.log(`📋 ${codes.length} processo(s) encontrado(s)\n`);
 
-  const results = [];
-
-  for (const code of codes) {
-    console.log(`🔍 Verificando: ${code}`);
-
-    const result = await checkProcess(code, dateStr);
-
-    results.push(result);
-
-    // Pequena pausa para evitar excesso de requisições
-    await new Promise(resolve => setTimeout(resolve, 1500));
-  }
+  const results = await checkAllProcesses(codes, dateStr);
 
   saveResultsSpreadsheet(results);
-  markDuplicatesInResultSheet();
 
-  return {
-    date: dateStr,
-    results,
-  };
+  return { date: dateStr, results };
 }
 
 module.exports = {
   runChecks,
+  runChecksFromBuffer,
   getTodayBR,
 };

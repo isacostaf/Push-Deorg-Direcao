@@ -43,7 +43,13 @@
     <section class="card card-loading hidden" id="loading-section">
       <div class="spinner"></div>
       <p class="loading-title">Consultando processos no DOU...</p>
-      <p class="loading-hint">Isso pode levar alguns minutos dependendo da quantidade de processos.</p>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p class="loading-progress" id="loading-progress">0 / 0 processos</p>
+      </div>
+      <p class="loading-hint">Planilhas grandes são processadas em lotes. Não feche esta página.</p>
     </section>
 
     <section class="card card-success hidden" id="result-section">
@@ -71,6 +77,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -257,6 +257,32 @@ body {
   line-height: 1.5;
 }
 
+.progress-wrap {
+  margin: 20px 0 12px;
+}
+
+.progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--green-600), var(--gold-400));
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.loading-progress {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--gold-300);
+}
+
 .card-success {
   text-align: center;
 }

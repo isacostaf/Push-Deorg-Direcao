@@ -8,9 +8,6 @@
   "functions": {
     "api/cron/check.js": {
       "maxDuration": 120
-    },
-    "api/process.js": {
-      "maxDuration": 120
     }
   },
   "rewrites": [

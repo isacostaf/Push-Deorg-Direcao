@@ -217,6 +217,14 @@ async function checkAllProcesses(codes, dateStr) {
 }
 
 /**
+ * Consulta um lote de processos em paralelo (sem delay).
+ * Usado pela API web — cada lote deve caber no timeout de 10s do Vercel Hobby.
+ */
+async function checkBatch(codes, dateStr) {
+  return Promise.all(codes.map(code => checkProcess(code, dateStr)));
+}
+
+/**
  * Processa um arquivo Excel enviado pelo usuário
  * e retorna o buffer da planilha de resultados.
  */
@@ -267,5 +275,6 @@ async function runChecks() {
 module.exports = {
   runChecks,
   runChecksFromBuffer,
+  checkBatch,
   getTodayBR,
 };

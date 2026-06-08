@@ -1,10 +1,11 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { runChecksFromBuffer } = require('./src/checker');
+const { checkBatch, getTodayBR } = require('./src/checker');
 
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
+const MAX_BATCH_SIZE = 5;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -50,39 +51,39 @@ function serveStatic(req, res) {
   });
 }
 
-async function handleProcess(req, res) {
+async function handleCheckBatch(req, res) {
   try {
     const body = await readBody(req);
     const parsed = JSON.parse(body.toString());
+    const codes = parsed?.codes;
 
-    if (!parsed?.file) {
+    if (!Array.isArray(codes) || codes.length === 0) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Nenhum arquivo enviado.' }));
+      res.end(JSON.stringify({ error: 'Informe ao menos um código de processo.' }));
       return;
     }
 
-    const buffer = Buffer.from(parsed.file, 'base64');
-    const { date, results, outputBuffer } = await runChecksFromBuffer(buffer);
-    const found = results.filter(r => r.found).length;
+    if (codes.length > MAX_BATCH_SIZE) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: `Máximo de ${MAX_BATCH_SIZE} processos por lote.` }));
+      return;
+    }
 
-    res.writeHead(200, {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="processos_resultado.xlsx"',
-      'X-Process-Date': date,
-      'X-Total-Processes': String(results.length),
-      'X-Found-Count': String(found),
-    });
-    res.end(outputBuffer);
+    const date = getTodayBR();
+    const results = await checkBatch(codes, date);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ date, results }));
   } catch (err) {
-    console.error('Erro no processamento:', err);
+    console.error('Erro no lote:', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: err.message || 'Erro ao processar planilha.' }));
+    res.end(JSON.stringify({ error: err.message || 'Erro ao consultar DOU.' }));
   }
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'POST' && req.url === '/api/process') {
-    await handleProcess(req, res);
+  if (req.method === 'POST' && req.url === '/api/check-batch') {
+    await handleCheckBatch(req, res);
     return;
   }
 

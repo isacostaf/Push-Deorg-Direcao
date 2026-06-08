@@ -9,5 +9,8 @@
     "api/cron/check.js": {
       "maxDuration": 120
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ]
 }

@@ -30,8 +30,8 @@ function setFile(file) {
   if (!file) return;
 
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!['xlsx', 'xls'].includes(ext)) {
-    alert('Selecione um arquivo Excel (.xlsx ou .xls).');
+  if (ext !== 'csv') {
+    alert('Selecione um arquivo CSV (.csv).');
     return;
   }
 
@@ -58,29 +58,23 @@ function updateProgress(done, total) {
   loadingProgress.textContent = `${done} / ${total} processos`;
 }
 
-function readWorkbook(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        resolve(wb);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
+function parseCsv(text) {
+  return text
+    .trim()
+    .split(/\r?\n/)
+    .map(line => line.split(','));
 }
 
-function extractCodes(wb) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+function extractCodes(rows) {
   const codes = [];
 
   for (const row of rows.slice(1)) {
-    if (row && row[1] !== undefined && row[1] !== null && row[1] !== '') {
+    if (
+      row &&
+      row[1] !== undefined &&
+      row[1] !== null &&
+      row[1] !== ''
+    ) {
       codes.push(String(row[1]).trim());
     }
   }
@@ -88,32 +82,34 @@ function extractCodes(wb) {
   return codes;
 }
 
-function applyResultsToWorkbook(wb, results) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
+function applyResultsToRows(rows, results) {
   if (!rows[0]) rows[0] = [];
+
   rows[0][2] = 'check';
 
   results.forEach((result, index) => {
     const rowIndex = index + 1;
-    if (!rows[rowIndex]) rows[rowIndex] = [];
+
+    if (!rows[rowIndex]) {
+      rows[rowIndex] = [];
+    }
+
     rows[rowIndex][2] = result.found ? 'sim' : 'nao';
   });
 
-  wb.Sheets[wb.SheetNames[0]] = XLSX.utils.aoa_to_sheet(rows);
+  return rows;
 }
 
-function markDuplicatesInWorkbook(wb) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+function markDuplicatesInRows(rows) {
   const header = rows[0];
   const data = rows.slice(1);
+
   const countMap = new Map();
 
   for (const row of data) {
     const process = row[1];
     const status = String(row[2] || '').toLowerCase();
+
     if (status === 'sim') {
       countMap.set(process, (countMap.get(process) || 0) + 1);
     }
@@ -122,19 +118,17 @@ function markDuplicatesInWorkbook(wb) {
   for (const row of data) {
     const process = row[1];
     const status = String(row[2] || '').toLowerCase();
+
     if (status === 'sim' && countMap.get(process) > 1) {
       row[2] = 'verificar';
     }
   }
 
-  wb.Sheets[wb.SheetNames[0]] = XLSX.utils.aoa_to_sheet([header, ...data]);
+  return [header, ...data];
 }
 
-function workbookToBlob(wb) {
-  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  return new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+function rowsToCsv(rows) {
+  return rows.map(row => row.join(',')).join('\n');
 }
 
 async function checkBatch(codes) {
@@ -164,8 +158,11 @@ async function processFile() {
   showSection(loadingSection);
 
   try {
-    const wb = await readWorkbook(selectedFile);
-    const codes = extractCodes(wb);
+    const csvText = await selectedFile.text();
+
+    const rows = parseCsv(csvText);
+
+    const codes = extractCodes(rows);
 
     if (codes.length === 0) {
       throw new Error('Nenhum código de processo encontrado na coluna B.');
@@ -185,10 +182,18 @@ async function processFile() {
       updateProgress(allResults.length, codes.length);
     }
 
-    applyResultsToWorkbook(wb, allResults);
-    markDuplicatesInWorkbook(wb);
+    let updatedRows = applyResultsToRows(rows, allResults);
 
-    resultBlob = workbookToBlob(wb);
+    updatedRows = markDuplicatesInRows(updatedRows);
+
+    const csvOutput = rowsToCsv(updatedRows);
+
+    resultBlob = new Blob(
+      [csvOutput],
+      {
+        type: 'text/csv;charset=utf-8'
+      }
+    );
 
     const found = allResults.filter(r => r.found).length;
     resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
@@ -205,7 +210,7 @@ function downloadResult() {
   const url = URL.createObjectURL(resultBlob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'processos_resultado.xlsx';
+  a.download = 'processos_resultado.csv';
   document.body.appendChild(a);
   a.click();
   a.remove();

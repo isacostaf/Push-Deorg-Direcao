@@ -3,12 +3,12 @@ require('dotenv').config();
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { checkBatch, getTodayBR } = require('./src/checker');
-const { enviarEmail } = require('./src/email');
+
+const handleCheckBatch = require('./api/check-batch');
+const handleSendEmail = require('./api/send-email');
 
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
-const MAX_BATCH_SIZE = 5;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -24,11 +24,20 @@ const MIME = {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-
     req.on('data', chunk => chunks.push(chunk));
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+function adaptRes(res) {
+  res.status = (code) => ({
+    json: (data) => {
+      res.writeHead(code, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    },
+  });
+  return res;
 }
 
 function serveStatic(req, res) {
@@ -54,66 +63,19 @@ function serveStatic(req, res) {
   });
 }
 
-async function handleCheckBatch(req, res) {
-  try {
-    const body = await readBody(req);
-    const parsed = JSON.parse(body.toString());
-    const codes = parsed?.codes;
-
-    if (!Array.isArray(codes) || codes.length === 0) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Informe ao menos um código de processo.' }));
-      return;
-    }
-
-    if (codes.length > MAX_BATCH_SIZE) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: `Máximo de ${MAX_BATCH_SIZE} processos por lote.` }));
-      return;
-    }
-
-    const date = getTodayBR();
-    const results = await checkBatch(codes, date);
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ date, results }));
-  } catch (err) {
-    console.error('Erro no lote:', err);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: err.message || 'Erro ao consultar DOU.' }));
-  }
-}
-
-async function handleSendEmail(req, res) {
-  try {
-    const body = await readBody(req);
-    const parsed = JSON.parse(body.toString());
-    const { date, results, csvContent } = parsed;
-
-    if (!date || !Array.isArray(results)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Dados inválidos.' }));
-      return;
-    }
-
-    await enviarEmail({ date, results, csvContent });
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ success: true }));
-  } catch (err) {
-    console.error('Erro ao enviar email:', err);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: err.message || 'Erro ao enviar email.' }));
-  }
-}
-
 const server = http.createServer(async (req, res) => {
+  adaptRes(res);
+
   if (req.method === 'POST' && req.url === '/api/check-batch') {
+    const body = await readBody(req);
+    req.body = JSON.parse(body.toString());
     await handleCheckBatch(req, res);
     return;
   }
 
   if (req.method === 'POST' && req.url === '/api/send-email') {
+    const body = await readBody(req);
+    req.body = JSON.parse(body.toString());
     await handleSendEmail(req, res);
     return;
   }

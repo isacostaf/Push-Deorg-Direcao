@@ -2,11 +2,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { checkBatch, getTodayBR } = require('./src/checker');
+const { getTimestamps, recordUpload, recordExport } = require('./src/db');
 
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 const MAX_BATCH_SIZE = 5;
-const TIMESTAMPS_FILE = path.join(__dirname, 'timestamps.json');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -26,31 +26,6 @@ function readBody(req) {
     req.on('data', chunk => chunks.push(chunk));
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
-  });
-}
-
-function readTimestamps() {
-  try {
-    const data = fs.readFileSync(TIMESTAMPS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return { lastUpload: null, lastExport: null };
-  }
-}
-
-function writeTimestamps(timestamps) {
-  fs.writeFileSync(TIMESTAMPS_FILE, JSON.stringify(timestamps, null, 2));
-}
-
-function formatTimestamp(date) {
-  if (!date) return null;
-  return new Date(date).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
   });
 }
 
@@ -98,10 +73,6 @@ async function handleCheckBatch(req, res) {
     const date = getTodayBR();
     const results = await checkBatch(codes, date);
 
-    const timestamps = readTimestamps();
-    timestamps.lastUpload = new Date().toISOString();
-    writeTimestamps(timestamps);
-
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ date, results }));
   } catch (err) {
@@ -113,12 +84,9 @@ async function handleCheckBatch(req, res) {
 
 async function handleGetTimestamps(req, res) {
   try {
-    const timestamps = readTimestamps();
+    const data = await getTimestamps();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      lastUpload: formatTimestamp(timestamps.lastUpload),
-      lastExport: formatTimestamp(timestamps.lastExport)
-    }));
+    res.end(JSON.stringify(data));
   } catch (err) {
     console.error('Erro ao ler timestamps:', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -126,12 +94,21 @@ async function handleGetTimestamps(req, res) {
   }
 }
 
+async function handleRecordUpload(req, res) {
+  try {
+    await recordUpload();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true }));
+  } catch (err) {
+    console.error('Erro ao registrar upload:', err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Erro ao registrar upload.' }));
+  }
+}
+
 async function handleRecordExport(req, res) {
   try {
-    const timestamps = readTimestamps();
-    timestamps.lastExport = new Date().toISOString();
-    writeTimestamps(timestamps);
-
+    await recordExport();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true }));
   } catch (err) {
@@ -149,6 +126,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/api/timestamps') {
     await handleGetTimestamps(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/api/record-upload') {
+    await handleRecordUpload(req, res);
     return;
   }
 

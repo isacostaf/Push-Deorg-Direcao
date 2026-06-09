@@ -32,6 +32,15 @@ async function fetchTimestamps() {
   }
 }
 
+async function recordUpload() {
+  try {
+    await fetch('/api/record-upload', { method: 'POST' });
+    await fetchTimestamps();
+  } catch (err) {
+    console.error('Erro ao registrar upload:', err);
+  }
+}
+
 async function recordExport() {
   try {
     await fetch('/api/record-export', { method: 'POST' });
@@ -194,6 +203,8 @@ async function processFile() {
     }
 
     updateProgress(0, codes.length);
+
+    await recordUpload();
 
     const allResults = [];
     let dateStr = '';

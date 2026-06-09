@@ -1,4 +1,6 @@
-const xlsx = require('xlsx');
+const fs = require('fs');
+const { parse } = require('csv-parse/sync');
+const { stringify } = require('csv-stringify/sync');
 const path = require('path');
 
 /**
@@ -62,18 +64,30 @@ function readProcessCodesFromRows(rows) {
  * processos.xlsx (coluna B).
  */
 function readProcessCodes() {
-  const xlsxPath = path.join(process.cwd(), 'processos.xlsx');
-  const wb = xlsx.readFile(xlsxPath);
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+  const csvPath = path.join(process.cwd(), 'processos.csv');
+
+  const content = fs.readFileSync(csvPath, 'utf8');
+
+  const rows = parse(content, {
+    delimiter: ',',
+    skip_empty_lines: true
+  });
+
   return readProcessCodesFromRows(rows);
 }
 
 function readProcessCodesFromBuffer(buffer) {
-  const wb = xlsx.read(buffer, { type: 'buffer' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-  return { wb, codes: readProcessCodesFromRows(rows) };
+  const content = buffer.toString('utf8');
+
+  const rows = parse(content, {
+    delimiter: ',',
+    skip_empty_lines: true
+  });
+
+  return {
+    rows,
+    codes: readProcessCodesFromRows(rows)
+  };
 }
 
 /**
@@ -135,10 +149,7 @@ async function checkProcess(processCode, dateStr) {
 /**
  * Aplica os resultados da verificação na coluna C da planilha.
  */
-function applyResultsToWorkbook(wb, results) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
+function applyResultsToRows(rows, results) {
   rows[0][2] = 'check';
 
   results.forEach((result, index) => {
@@ -151,16 +162,13 @@ function applyResultsToWorkbook(wb, results) {
     rows[rowIndex][2] = result.found ? 'sim' : 'nao';
   });
 
-  wb.Sheets[wb.SheetNames[0]] = xlsx.utils.aoa_to_sheet(rows);
-  return wb;
+  return rows;
 }
 
-function markDuplicatesInWorkbook(wb) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
+function markDuplicatesInRows(rows) {
   const header = rows[0];
   const data = rows.slice(1);
+
   const countMap = new Map();
 
   for (const row of data) {
@@ -181,22 +189,30 @@ function markDuplicatesInWorkbook(wb) {
     }
   }
 
-  wb.Sheets[wb.SheetNames[0]] = xlsx.utils.aoa_to_sheet([header, ...data]);
-  return wb;
+  return [header, ...data];
 }
 
 /**
  * Salva uma nova planilha contendo
  * o resultado da verificação na coluna C.
  */
-function saveResultsSpreadsheet(results) {
-  const inputPath = path.join(process.cwd(), 'processos.xlsx');
-  const outputPath = path.join(process.cwd(), 'processos_resultado.xlsx');
+function saveResultsCsv(results) {
+  const inputPath = path.join(process.cwd(), 'processos.csv');
+  const outputPath = path.join(process.cwd(), 'processos_resultado.csv');
 
-  const wb = xlsx.readFile(inputPath);
-  applyResultsToWorkbook(wb, results);
-  markDuplicatesInWorkbook(wb);
-  xlsx.writeFile(wb, outputPath);
+  const content = fs.readFileSync(inputPath, 'utf8');
+
+  let rows = parse(content, {
+    delimiter: ',',
+    skip_empty_lines: true
+  });
+
+  rows = applyResultsToRows(rows, results);
+  rows = markDuplicatesInRows(rows);
+
+  const csv = stringify(rows);
+
+  fs.writeFileSync(outputPath, csv);
 
   console.log(`📄 Resultado salvo em ${outputPath}`);
 }
@@ -230,7 +246,7 @@ async function checkBatch(codes, dateStr) {
  */
 async function runChecksFromBuffer(buffer) {
   const dateStr = getTodayBR();
-  const { wb, codes } = readProcessCodesFromBuffer(buffer);
+  const { rows, codes } = readProcessCodesFromBuffer(buffer);
 
   if (codes.length === 0) {
     throw new Error('Nenhum código de processo encontrado na planilha.');
@@ -241,10 +257,12 @@ async function runChecksFromBuffer(buffer) {
 
   const results = await checkAllProcesses(codes, dateStr);
 
-  applyResultsToWorkbook(wb, results);
-  markDuplicatesInWorkbook(wb);
+  let updatedRows = applyResultsToRows(rows, results);
+  updatedRows = markDuplicatesInRows(updatedRows);
 
-  const outputBuffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const csvContent = stringify(updatedRows);
+
+  const outputBuffer = Buffer.from(csvContent, 'utf8');
 
   return { date: dateStr, results, outputBuffer };
 }
@@ -267,7 +285,7 @@ async function runChecks() {
 
   const results = await checkAllProcesses(codes, dateStr);
 
-  saveResultsSpreadsheet(results);
+  saveResultsCsv(results);
 
   return { date: dateStr, results };
 }

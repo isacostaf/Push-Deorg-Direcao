@@ -1,5 +1,4 @@
 const { runChecks } = require('./src/checker');
-const { sendEmail } = require('./src/mailer');
 
 async function main() {
   console.log('🚀 Iniciando Monitor DOU...\n');
@@ -12,7 +11,6 @@ async function main() {
     console.log(`  ${r.processCode} → ${status}`);
   }
 
-  //await sendEmail(date, results);
   console.log('\n✅ Monitor DOU finalizado.');
 }
 

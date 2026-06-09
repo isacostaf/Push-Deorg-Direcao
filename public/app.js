@@ -13,11 +13,33 @@ const resetBtn = document.getElementById('reset-btn');
 const retryBtn = document.getElementById('retry-btn');
 const progressFill = document.getElementById('progress-fill');
 const loadingProgress = document.getElementById('loading-progress');
+const lastUploadEl = document.getElementById('last-upload');
+const lastExportEl = document.getElementById('last-export');
 
 const BATCH_SIZE = 5;
 
 let selectedFile = null;
 let resultBlob = null;
+
+async function fetchTimestamps() {
+  try {
+    const response = await fetch('/api/timestamps');
+    const data = await response.json();
+    lastUploadEl.textContent = data.lastUpload || '-';
+    lastExportEl.textContent = data.lastExport || '-';
+  } catch (err) {
+    console.error('Erro ao buscar timestamps:', err);
+  }
+}
+
+async function recordExport() {
+  try {
+    await fetch('/api/record-export', { method: 'POST' });
+    await fetchTimestamps();
+  } catch (err) {
+    console.error('Erro ao registrar export:', err);
+  }
+}
 
 function showSection(section) {
   [uploadSection, loadingSection, resultSection, errorSection].forEach(el => {
@@ -30,8 +52,8 @@ function setFile(file) {
   if (!file) return;
 
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!['xlsx', 'xls'].includes(ext)) {
-    alert('Selecione um arquivo Excel (.xlsx ou .xls).');
+  if (!['csv'].includes(ext)) {
+    alert('Selecione um arquivo CSV (.csv).');
     return;
   }
 
@@ -58,25 +80,42 @@ function updateProgress(done, total) {
   loadingProgress.textContent = `${done} / ${total} processos`;
 }
 
-function readWorkbook(file) {
+function parseCSV(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        resolve(wb);
+        const text = e.target.result;
+        const rows = text.split('\n').map(line => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        });
+        resolve(rows.filter(row => row.length > 0));
       } catch (err) {
         reject(err);
       }
     };
     reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
   });
 }
 
-function extractCodes(wb) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+function extractCodes(rows) {
   const codes = [];
 
   for (const row of rows.slice(1)) {
@@ -88,10 +127,7 @@ function extractCodes(wb) {
   return codes;
 }
 
-function applyResultsToWorkbook(wb, results) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
+function applyResultsToRows(rows, results) {
   if (!rows[0]) rows[0] = [];
   rows[0][2] = 'check';
 
@@ -101,12 +137,10 @@ function applyResultsToWorkbook(wb, results) {
     rows[rowIndex][2] = result.found ? 'sim' : 'nao';
   });
 
-  wb.Sheets[wb.SheetNames[0]] = XLSX.utils.aoa_to_sheet(rows);
+  return rows;
 }
 
-function markDuplicatesInWorkbook(wb) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+function markDuplicatesInRows(rows) {
   const header = rows[0];
   const data = rows.slice(1);
   const countMap = new Map();
@@ -127,13 +161,25 @@ function markDuplicatesInWorkbook(wb) {
     }
   }
 
-  wb.Sheets[wb.SheetNames[0]] = XLSX.utils.aoa_to_sheet([header, ...data]);
+  return [header, ...data];
 }
 
-function workbookToBlob(wb) {
-  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  return new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+function rowsToCSV(rows) {
+  return rows.map(row => {
+    return row.map(cell => {
+      if (cell === undefined || cell === null) return '';
+      const str = String(cell);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(',');
+  }).join('\n');
+}
+
+function csvToBlob(csv) {
+  return new Blob([csv], {
+    type: 'text/csv;charset=utf-8;',
   });
 }
 
@@ -164,8 +210,8 @@ async function processFile() {
   showSection(loadingSection);
 
   try {
-    const wb = await readWorkbook(selectedFile);
-    const codes = extractCodes(wb);
+    const rows = await parseCSV(selectedFile);
+    const codes = extractCodes(rows);
 
     if (codes.length === 0) {
       throw new Error('Nenhum código de processo encontrado na coluna B.');
@@ -185,13 +231,15 @@ async function processFile() {
       updateProgress(allResults.length, codes.length);
     }
 
-    applyResultsToWorkbook(wb, allResults);
-    markDuplicatesInWorkbook(wb);
+    let updatedRows = applyResultsToRows(rows, allResults);
+    updatedRows = markDuplicatesInRows(updatedRows);
 
-    resultBlob = workbookToBlob(wb);
+    const csv = rowsToCSV(updatedRows);
+    resultBlob = csvToBlob(csv);
 
     const found = allResults.filter(r => r.found).length;
     resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
+    await fetchTimestamps();
     showSection(resultSection);
   } catch (err) {
     errorMessage.textContent = err.message;
@@ -205,11 +253,13 @@ function downloadResult() {
   const url = URL.createObjectURL(resultBlob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'processos_resultado.xlsx';
+  a.download = 'processos_resultado.csv';
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+
+  recordExport();
 }
 
 fileInput.addEventListener('change', () => {
@@ -235,3 +285,5 @@ processBtn.addEventListener('click', processFile);
 downloadBtn.addEventListener('click', downloadResult);
 resetBtn.addEventListener('click', reset);
 retryBtn.addEventListener('click', reset);
+
+fetchTimestamps();

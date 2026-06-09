@@ -5,27 +5,27 @@ const path = require('path');
  * Retorna a data atual no formato DD-MM-AAAA
  * ajustada para o fuso horário de Brasília.
  */
-function getTodayBR() {
-  const now = new Date();
+// function getTodayBR() {
+//   const now = new Date();
 
-  const brOffset = -3 * 60;
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const brDate = new Date(utc + brOffset * 60000);
+//   const brOffset = -3 * 60;
+//   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+//   const brDate = new Date(utc + brOffset * 60000);
 
-  const day = String(brDate.getDate()).padStart(2, '0');
-  const month = String(brDate.getMonth() + 1).padStart(2, '0');
-  const year = brDate.getFullYear();
+//   const day = String(brDate.getDate()).padStart(2, '0');
+//   const month = String(brDate.getMonth() + 1).padStart(2, '0');
+//   const year = brDate.getFullYear();
 
-  return `${day}-${month}-${year}`;
-}
+//   return `${day}-${month}-${year}`;
+// }
 
 // ----------------------------------
 // APENAS TESTE
 // FUNCAO PARA RODAR DATA ESPECIFICA
 // DESCOMENTAR OU COMENTAR
-// function getTodayBR() {
-//   return '01-06-2026';
-// }
+function getTodayBR() {
+  return '01-06-2026';
+}
 
 /**
  * Monta a URL de pesquisa do DOU

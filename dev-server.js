@@ -1,7 +1,10 @@
+require('dotenv').config();
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { checkBatch, getTodayBR } = require('./src/checker');
+const { enviarEmail } = require('./src/email');
 
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
@@ -81,9 +84,37 @@ async function handleCheckBatch(req, res) {
   }
 }
 
+async function handleSendEmail(req, res) {
+  try {
+    const body = await readBody(req);
+    const parsed = JSON.parse(body.toString());
+    const { date, results, csvContent } = parsed;
+
+    if (!date || !Array.isArray(results)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Dados inválidos.' }));
+      return;
+    }
+
+    await enviarEmail({ date, results, csvContent });
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true }));
+  } catch (err) {
+    console.error('Erro ao enviar email:', err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message || 'Erro ao enviar email.' }));
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/check-batch') {
     await handleCheckBatch(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/api/send-email') {
+    await handleSendEmail(req, res);
     return;
   }
 

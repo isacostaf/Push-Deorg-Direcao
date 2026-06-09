@@ -195,6 +195,12 @@ async function processFile() {
       }
     );
 
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: dateStr, results: allResults, csvContent: csvOutput }),
+    }).catch(() => {});
+
     const found = allResults.filter(r => r.found).length;
     resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
     showSection(resultSection);

@@ -128,7 +128,7 @@ function markDuplicatesInRows(rows) {
 }
 
 function rowsToCsv(rows) {
-  return rows.map(row => row.join(',')).join('\n');
+  return rows.map(row => row.join(';')).join('\n');
 }
 
 async function checkBatch(codes) {

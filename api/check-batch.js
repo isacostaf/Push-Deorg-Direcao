@@ -2,7 +2,7 @@ const { checkBatch, getTodayBR } = require('../src/checker');
 
 const MAX_BATCH_SIZE = 5;
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido.' });
   }

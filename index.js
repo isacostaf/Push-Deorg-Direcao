@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const path = require('path');
+
 const { runChecks } = require('./src/checker');
 const { enviarEmail } = require('./src/email');
 

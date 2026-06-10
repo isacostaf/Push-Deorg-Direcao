@@ -4,26 +4,11 @@ const nodemailer = require('nodemailer');
 
 function montarCorpoEmail(date, results) {
   const publicados = results.filter(r => r.found && !r.error);
-  const naoEncontrados = results.filter(r => !r.found && !r.error);
-  const comErro = results.filter(r => r.error);
 
   const total = results.length;
   const dataFormatada = date.replace(/-/g, '/');
 
   const renderLinha = (r) => {
-    let cor, status;
-
-    if (r.error) {
-      cor = '#b45309';
-      status = `Erro: ${r.error}`;
-    } else if (r.found) {
-      cor = '#166534';
-      status = 'Publicado';
-    } else {
-      cor = '#991b1b';
-      status = 'Não encontrado';
-    }
-
     const processo = r.url
       ? `<a href="${r.url}" target="_blank" style="color:#0004ff;text-decoration:underline;">${r.processCode}</a>`
       : r.processCode;
@@ -31,19 +16,31 @@ function montarCorpoEmail(date, results) {
     return `
       <tr>
         <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">${processo}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:${cor};font-weight:600;">${status}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#166534;font-weight:600;">Publicado</td>
       </tr>`;
   };
 
-  const linhaTabela = results.map(renderLinha).join('');
+  const linhaTabela = publicados.map(renderLinha).join('');
 
-  const linhaErro = comErro.length
-    ? `<li><strong style="color:#b45309;">${comErro.length}</strong> com erro</li>`
-    : '';
+  if (publicados.length === 0) {
+    return `
+      <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
+        <p>Prezada Sra. Diretora Erika,</p>
+        <p>
+          Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
+          realizada em <strong>${dataFormatada}</strong> verificou
+          <strong>${total} processo(s)</strong>, com o seguinte resultado:
+        </p>
+        <ul style="margin:0 0 16px;">
+          <li><strong style="color:#bb0b0b;">${publicados.length}</strong> publicado(s)</li>
+        </ul>
+        <p>Esta busca foi realizada de maneira autônoma e não substitui uma pesquisa detalhada no Diário Oficial.</p>
+      </div>`;
+  }
 
   return `
     <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
-      <p>Prezado(a),</p>
+      <p>Prezada Sra. Diretora Erika,</p>
       <p>
         Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
         realizada em <strong>${dataFormatada}</strong> verificou
@@ -51,8 +48,6 @@ function montarCorpoEmail(date, results) {
       </p>
       <ul style="margin:0 0 16px;">
         <li><strong style="color:#166534;">${publicados.length}</strong> publicado(s)</li>
-        <li><strong style="color:#991b1b;">${naoEncontrados.length}</strong> não encontrado(s)</li>
-        ${linhaErro}
       </ul>
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
         <thead>
@@ -63,7 +58,6 @@ function montarCorpoEmail(date, results) {
         </thead>
         <tbody>${linhaTabela}</tbody>
       </table>
-      <p>Em anexo, segue a tabela com os resultados em formato .CSV.</p>
       <p>Esta busca foi realizada de maneira autônoma e não substitui uma pesquisa detalhada no Diário Oficial.</p>
     </div>`;
 }
@@ -102,19 +96,11 @@ async function enviarEmail({ date, results, csvPath, csvContent }) {
 
   const dataFormatada = date.replace(/-/g, '/');
 
-  const anexos = [];
-  if (csvContent) {
-    anexos.push({ filename: `processos_resultado_${date}.csv`, content: Buffer.from(csvContent, 'utf8') });
-  } else if (csvPath && fs.existsSync(csvPath)) {
-    anexos.push({ filename: path.basename(csvPath), path: csvPath });
-  }
-
   await transporter.sendMail({
     from: emailFrom,
     to: destinatarios.join(', '),
     subject: `Monitor DOU - ${dataFormatada}`,
     html: montarCorpoEmail(date, results),
-    attachments: anexos,
   });
 }
 

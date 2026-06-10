@@ -25,6 +25,7 @@ function montarCorpoEmail(date, results) {
   if (publicados.length === 0) {
     return `
       <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
+        <img src="cid:email-logo" style="width:100%;max-width:680px;display:block;margin-bottom:20px;" alt="" />
         <p>Prezada Sra. Diretora Erika,</p>
         <p>
           Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
@@ -40,6 +41,7 @@ function montarCorpoEmail(date, results) {
 
   return `
     <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
+      <img src="cid:email-logo" style="width:100%;max-width:680px;display:block;margin-bottom:20px;" alt="" />
       <p>Prezada Sra. Diretora Erika,</p>
       <p>
         Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
@@ -91,16 +93,22 @@ async function configurarEnvioEmail() {
   return { transporter, emailFrom, destinatarios };
 }
 
-async function enviarEmail({ date, results, csvPath, csvContent }) {
+async function enviarEmail({ date, results }) {
   const { transporter, emailFrom, destinatarios } = await configurarEnvioEmail();
 
   const dataFormatada = date.replace(/-/g, '/');
+
+  const logoPath = path.join(__dirname, '..', 'public', 'email.png');
+  const attachments = fs.existsSync(logoPath)
+    ? [{ filename: 'email.png', path: logoPath, cid: 'email-logo' }]
+    : [];
 
   await transporter.sendMail({
     from: emailFrom,
     to: destinatarios.join(', '),
     subject: `Monitor DOU - ${dataFormatada}`,
     html: montarCorpoEmail(date, results),
+    attachments,
   });
 }
 

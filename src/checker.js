@@ -67,9 +67,14 @@ function buildDoeUrl(processCode, dateStr) {
  * Extrai códigos de processo da coluna B (ignora cabeçalho).
  */
 function readProcessCodesFromRows(rows) {
+  console.log('Primeira linha:', rows[0]);
+  console.log('Segunda linha:', rows[1]);
+
   const codes = [];
 
   for (const row of rows.slice(1)) {
+    console.log('ROW:', row);
+
     if (
       row &&
       row[1] !== undefined &&
@@ -93,7 +98,7 @@ function readProcessCodes() {
   const content = fs.readFileSync(csvPath, 'utf8');
 
   const rows = parse(content, {
-    delimiter: ',',
+    delimiter: [';', ','],
     skip_empty_lines: true
   });
 
@@ -103,14 +108,24 @@ function readProcessCodes() {
 function readProcessCodesFromBuffer(buffer) {
   const content = buffer.toString('utf8');
 
+  console.log('--- CONTEUDO INICIO ---');
+  console.log(content.substring(0, 300));
+  console.log('--- CONTEUDO FIM ---');
+
   const rows = parse(content, {
-    delimiter: ',',
+    delimiter: [';', ','],
     skip_empty_lines: true
   });
 
+  console.log('ROWS:', JSON.stringify(rows.slice(0, 5), null, 2));
+
+  const codes = readProcessCodesFromRows(rows);
+
+  console.log('CODES:', codes);
+
   return {
     rows,
-    codes: readProcessCodesFromRows(rows)
+    codes
   };
 }
 
@@ -243,7 +258,7 @@ function saveResultsCsv(results) {
   const content = fs.readFileSync(inputPath, 'utf8');
 
   let rows = parse(content, {
-    delimiter: ',',
+    delimiter: [';', ','],
     skip_empty_lines: true
   });
 

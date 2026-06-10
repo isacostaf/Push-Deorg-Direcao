@@ -1,3 +1,5 @@
+//index
+// so prot temrinal
 const { runChecks } = require('./src/checker');
 const { sendEmail } = require('./src/mailer');
 

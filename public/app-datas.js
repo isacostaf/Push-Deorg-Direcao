@@ -1,3 +1,4 @@
+//app-datas.js
 const fileInput = document.getElementById('file-input');
 const dropzone = document.getElementById('dropzone');
 const fileNameEl = document.getElementById('file-name');
@@ -30,6 +31,7 @@ function setFile(file) {
   if (!file) return;
 
   const ext = file.name.split('.').pop().toLowerCase();
+
   if (ext !== 'csv') {
     alert('Selecione um arquivo CSV (.csv).');
     return;
@@ -53,7 +55,10 @@ function reset() {
 }
 
 function updateProgress(done, total) {
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const pct = total > 0
+    ? Math.round((done / total) * 100)
+    : 0;
+
   progressFill.style.width = `${pct}%`;
   loadingProgress.textContent = `${done} / ${total} processos`;
 }
@@ -62,7 +67,7 @@ function parseCsv(text) {
   return text
     .trim()
     .split(/\r?\n/)
-    .map(line => line.split(/[;,]/));
+    .map(line => line.split(';'));
 }
 
 function extractCodes(rows) {
@@ -94,7 +99,9 @@ function applyResultsToRows(rows, results) {
       rows[rowIndex] = [];
     }
 
-    rows[rowIndex][2] = result.found ? 'sim' : 'nao';
+    rows[rowIndex][2] = result.found
+      ? 'sim'
+      : 'nao';
   });
 
   return rows;
@@ -111,7 +118,10 @@ function markDuplicatesInRows(rows) {
     const status = String(row[2] || '').toLowerCase();
 
     if (status === 'sim') {
-      countMap.set(process, (countMap.get(process) || 0) + 1);
+      countMap.set(
+        process,
+        (countMap.get(process) || 0) + 1
+      );
     }
   }
 
@@ -119,7 +129,10 @@ function markDuplicatesInRows(rows) {
     const process = row[1];
     const status = String(row[2] || '').toLowerCase();
 
-    if (status === 'sim' && countMap.get(process) > 1) {
+    if (
+      status === 'sim' &&
+      countMap.get(process) > 1
+    ) {
       row[2] = 'verificar';
     }
   }
@@ -128,28 +141,36 @@ function markDuplicatesInRows(rows) {
 }
 
 function rowsToCsv(rows) {
-  return rows.map(row => row.join(';')).join('\n');
+  return rows
+    .map(row => row.join(','))
+    .join('\n');
 }
 
-async function checkBatch(codes) {
-  const response = await fetch('/api/check-batch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ codes }),
-  });
+async function checkBatch(codes, dateDe, dateAte) {
+  const response = await fetch(
+    '/api/check-batch-datas',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        codes,
+        dateDe,
+        dateAte
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  console.log('RESPOSTA API:', data);
 
   if (!response.ok) {
-    let message = 'Erro ao consultar o DOU.';
-    try {
-      const data = await response.json();
-      message = data.error || message;
-    } catch {
-      // resposta não é JSON
-    }
-    throw new Error(message);
+    throw new Error(data.error || 'Erro ao consultar o DOU.');
   }
 
-  return response.json();
+  return data;
 }
 
 async function processFile() {
@@ -158,11 +179,23 @@ async function processFile() {
   showSection(loadingSection);
 
   try {
+    const dateDe = document.getElementById('data-inicio').value;
+    const dateAte = document.getElementById('data-fim').value;
+
     const csvText = await selectedFile.text();
 
     const rows = parseCsv(csvText);
 
+    // 👇 COLOCA AQUI
+    console.log('PRIMEIRAS LINHAS DO CSV:', rows.slice(0, 5));
+
     const codes = extractCodes(rows);
+
+    console.log('CÓDIGOS EXTRAÍDOS:', codes);
+
+    if (!dateDe || !dateAte) {
+      throw new Error('Selecione as datas inicial e final.');
+    }
 
     if (codes.length === 0) {
       throw new Error('Nenhum código de processo encontrado na coluna B.');
@@ -171,33 +204,32 @@ async function processFile() {
     updateProgress(0, codes.length);
 
     const allResults = [];
-    let dateStr = '';
 
     for (let i = 0; i < codes.length; i += BATCH_SIZE) {
       const batch = codes.slice(i, i + BATCH_SIZE);
-      const { date, results } = await checkBatch(batch);
 
-      dateStr = date;
+      const { results } = await checkBatch(batch, dateDe, dateAte);
+
       allResults.push(...results);
       updateProgress(allResults.length, codes.length);
     }
 
     let updatedRows = applyResultsToRows(rows, allResults);
-
     updatedRows = markDuplicatesInRows(updatedRows);
 
     const csvOutput = rowsToCsv(updatedRows);
 
-    resultBlob = new Blob(
-      [csvOutput],
-      {
-        type: 'text/csv;charset=utf-8'
-      }
-    );
+    resultBlob = new Blob([csvOutput], {
+      type: 'text/csv;charset=utf-8'
+    });
 
     const found = allResults.filter(r => r.found).length;
-    resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
+
+    resultStats.textContent =
+      `Período: ${dateDe} até ${dateAte} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
+
     showSection(resultSection);
+
   } catch (err) {
     errorMessage.textContent = err.message;
     showSection(errorSection);
@@ -207,36 +239,84 @@ async function processFile() {
 function downloadResult() {
   if (!resultBlob) return;
 
-  const url = URL.createObjectURL(resultBlob);
-  const a = document.createElement('a');
+  const url =
+    URL.createObjectURL(resultBlob);
+
+  const a =
+    document.createElement('a');
+
   a.href = url;
-  a.download = 'processos_resultado.csv';
+  a.download =
+    'processos_resultado.csv';
+
   document.body.appendChild(a);
   a.click();
   a.remove();
+
   URL.revokeObjectURL(url);
 }
 
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) setFile(fileInput.files[0]);
-});
+fileInput.addEventListener(
+  'change',
+  () => {
+    if (fileInput.files[0]) {
+      setFile(fileInput.files[0]);
+    }
+  }
+);
 
-dropzone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  dropzone.classList.add('dragover');
-});
+dropzone.addEventListener(
+  'dragover',
+  e => {
+    e.preventDefault();
+    dropzone.classList.add(
+      'dragover'
+    );
+  }
+);
 
-dropzone.addEventListener('dragleave', () => {
-  dropzone.classList.remove('dragover');
-});
+dropzone.addEventListener(
+  'dragleave',
+  () => {
+    dropzone.classList.remove(
+      'dragover'
+    );
+  }
+);
 
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-});
+dropzone.addEventListener(
+  'drop',
+  e => {
+    e.preventDefault();
 
-processBtn.addEventListener('click', processFile);
-downloadBtn.addEventListener('click', downloadResult);
-resetBtn.addEventListener('click', reset);
-retryBtn.addEventListener('click', reset);
+    dropzone.classList.remove(
+      'dragover'
+    );
+
+    if (e.dataTransfer.files[0]) {
+      setFile(
+        e.dataTransfer.files[0]
+      );
+    }
+  }
+);
+
+processBtn.addEventListener(
+  'click',
+  processFile
+);
+
+downloadBtn.addEventListener(
+  'click',
+  downloadResult
+);
+
+resetBtn.addEventListener(
+  'click',
+  reset
+);
+
+retryBtn.addEventListener(
+  'click',
+  reset
+);

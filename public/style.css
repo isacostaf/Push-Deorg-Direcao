@@ -132,6 +132,16 @@ body {
   box-shadow: var(--shadow);
 }
 
+.card-total-date {
+  background: rgba(255,255,255,0.10);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
 .hidden {
   display: none !important;
 }
@@ -372,39 +382,30 @@ body {
   }
 }
 
-.date-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--green-900);
-  margin-bottom: 18px;
-  text-align: center;
-}
-
-.date-fields {
+.date-row {
   display: flex;
-  flex-direction: column;
   gap: 16px;
 }
 
-.date-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.date-field {
+  flex: 1;
 }
 
-.date-group label {
-  font-size: 0.9rem;
+.date-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--green-900);
 }
 
-.date-group input {
+.date-field input {
   width: 100%;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid rgba(13, 40, 24, 0.15);
   border-radius: 12px;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   background: rgba(255,255,255,0.9);
 }
 

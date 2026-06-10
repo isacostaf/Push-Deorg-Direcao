@@ -6,7 +6,7 @@ const path = require('path');
 /**
  * Retorna a data atual no formato DD-MM-AAAA
  * ajustada para o fuso horário de Brasília.
- */
+ 
 function getTodayBR() {
   const now = new Date();
 
@@ -20,6 +20,7 @@ function getTodayBR() {
 
   return `${day}-${month}-${year}`;
 }
+*/
 
 function getYesterdayBR() {
   const now = new Date();
@@ -41,9 +42,9 @@ function getYesterdayBR() {
 // APENAS TESTE
 // FUNCAO PARA RODAR DATA ESPECIFICA
 // DESCOMENTAR OU COMENTAR
-// function getTodayBR() {
-//   return '01-06-2026';
-// }
+function getTodayBR() {
+  return '01-06-2026';
+}
 
 /**
  * Monta a URL de pesquisa do DOU
@@ -162,7 +163,14 @@ async function checkUrl(url) {
       html.includes('resultados-busca')
     );
 
-  return hasResult;
+  if (!hasResult) return { found: false, atoUrl: null };
+
+  const urlTitleMatch = html.match(/"urlTitle"\s*:\s*"([^"]+)"/);
+  const atoUrl = urlTitleMatch
+    ? `https://www.in.gov.br/web/dou/-/${urlTitleMatch[1]}`
+    : null;
+
+  return { found: true, atoUrl };
 }
 
 /**
@@ -178,23 +186,30 @@ async function checkProcess(processCode, dateStr) {
   // console.log('URL DOE:', url2);
   // console.log('............');
 
+  const fallback = { found: false, atoUrl: null };
+
   try {
-    const [found1, found2] = await Promise.all([
-      checkUrl(url1).catch(() => false),
-      checkUrl(url2).catch(() => false),
+    const [res1, res2] = await Promise.all([
+      checkUrl(url1).catch(() => fallback),
+      checkUrl(url2).catch(() => fallback),
     ]);
+
+    const found  = res1.found || res2.found;
+    const atoUrl = res1.atoUrl || res2.atoUrl || null;
 
     return {
       processCode,
-      found: found1 || found2,
-      foundInToday: found1,
-      foundInDoeYesterday: found2,
+      found,
+      atoUrl,
+      foundInToday: res1.found,
+      foundInDoeYesterday: res2.found,
       urls: [url1, url2],
     };
   } catch (err) {
     return {
       processCode,
       found: false,
+      atoUrl: null,
       error: err.message,
       urls: [url1, url2],
     };

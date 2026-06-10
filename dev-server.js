@@ -1,7 +1,10 @@
+//dev-server.js
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { checkBatch, getTodayBR } = require('./src/checker');
+const { checkBatchDatas } = require('./src/checker-datas');
 
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
@@ -81,11 +84,45 @@ async function handleCheckBatch(req, res) {
   }
 }
 
+async function handleCheckDatas(req, res) {
+  try {
+    const body = await readBody(req);
+    const parsed = JSON.parse(body.toString());
+
+    const codes = parsed?.codes;
+    const dateFrom = parsed?.dateFrom;
+    const dateTo = parsed?.dateTo;
+
+    if (!Array.isArray(codes) || codes.length === 0) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Informe ao menos um código.' }));
+    }
+
+    const results = await checkBatchDatas(codes, dateFrom, dateTo);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      dateFrom,
+      dateTo,
+      results
+    }));
+  } catch (err) {
+    console.error('Erro no datas:', err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message || 'Erro ao consultar datas.' }));
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/check-batch') {
     await handleCheckBatch(req, res);
     return;
   }
+
+  if (req.method === 'POST' && req.url === '/api/check-datas') {
+  await handleCheckDatas(req, res);
+  return;
+}
 
   if (req.method === 'GET') {
     serveStatic(req, res);

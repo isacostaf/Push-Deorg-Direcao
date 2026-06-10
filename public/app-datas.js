@@ -1,5 +1,3 @@
-//app.js
-
 const fileInput = document.getElementById('file-input');
 const dropzone = document.getElementById('dropzone');
 const fileNameEl = document.getElementById('file-name');
@@ -17,6 +15,10 @@ const progressFill = document.getElementById('progress-fill');
 const loadingProgress = document.getElementById('loading-progress');
 
 const BATCH_SIZE = 5;
+
+// 🔵 NOVO: datas do sistema novo
+const dateFrom = '01-06-2026';
+const dateTo = '10-06-2026';
 
 let selectedFile = null;
 let resultBlob = null;
@@ -61,41 +63,24 @@ function updateProgress(done, total) {
 }
 
 function parseCsv(text) {
-  return text
-    .trim()
-    .split(/\r?\n/)
-    .map(line => line.split(','));
+  return text.trim().split(/\r?\n/).map(line => line.split(','));
 }
 
 function extractCodes(rows) {
   const codes = [];
-
   for (const row of rows.slice(1)) {
-    if (
-      row &&
-      row[1] !== undefined &&
-      row[1] !== null &&
-      row[1] !== ''
-    ) {
-      codes.push(String(row[1]).trim());
-    }
+    if (row?.[1]) codes.push(String(row[1]).trim());
   }
-
   return codes;
 }
 
 function applyResultsToRows(rows, results) {
   if (!rows[0]) rows[0] = [];
-
   rows[0][2] = 'check';
 
   results.forEach((result, index) => {
     const rowIndex = index + 1;
-
-    if (!rows[rowIndex]) {
-      rows[rowIndex] = [];
-    }
-
+    if (!rows[rowIndex]) rows[rowIndex] = [];
     rows[rowIndex][2] = result.found ? 'sim' : 'nao';
   });
 
@@ -110,18 +95,14 @@ function markDuplicatesInRows(rows) {
 
   for (const row of data) {
     const process = row[1];
-    const status = String(row[2] || '').toLowerCase();
-
-    if (status === 'sim') {
+    if (row[2] === 'sim') {
       countMap.set(process, (countMap.get(process) || 0) + 1);
     }
   }
 
   for (const row of data) {
     const process = row[1];
-    const status = String(row[2] || '').toLowerCase();
-
-    if (status === 'sim' && countMap.get(process) > 1) {
+    if (row[2] === 'sim' && countMap.get(process) > 1) {
       row[2] = 'verificar';
     }
   }
@@ -130,25 +111,20 @@ function markDuplicatesInRows(rows) {
 }
 
 function rowsToCsv(rows) {
-  return rows.map(row => row.join(',')).join('\n');
+  return rows.map(r => r.join(',')).join('\n');
 }
 
-async function checkBatch(codes) {
-  const response = await fetch('/api/check-batch', {
+// 🔵 NOVA API
+async function checkBatch(codes, dateFrom, dateTo) {
+  const response = await fetch('/api/check-datas', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ codes }),
+    body: JSON.stringify({ codes, dateFrom, dateTo }),
   });
 
   if (!response.ok) {
-    let message = 'Erro ao consultar o DOU.';
-    try {
-      const data = await response.json();
-      message = data.error || message;
-    } catch {
-      // resposta não é JSON
-    }
-    throw new Error(message);
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Erro ao consultar datas.');
   }
 
   return response.json();
@@ -161,44 +137,41 @@ async function processFile() {
 
   try {
     const csvText = await selectedFile.text();
-
     const rows = parseCsv(csvText);
-
     const codes = extractCodes(rows);
 
-    if (codes.length === 0) {
-      throw new Error('Nenhum código de processo encontrado na coluna B.');
+    if (!codes.length) {
+      throw new Error('Nenhum código encontrado.');
     }
 
     updateProgress(0, codes.length);
 
     const allResults = [];
-    let dateStr = '';
 
     for (let i = 0; i < codes.length; i += BATCH_SIZE) {
       const batch = codes.slice(i, i + BATCH_SIZE);
-      const { date, results } = await checkBatch(batch);
 
-      dateStr = date;
+      const { results } = await checkBatch(batch, dateFrom, dateTo);
+
       allResults.push(...results);
       updateProgress(allResults.length, codes.length);
     }
 
     let updatedRows = applyResultsToRows(rows, allResults);
-
     updatedRows = markDuplicatesInRows(updatedRows);
 
     const csvOutput = rowsToCsv(updatedRows);
 
-    resultBlob = new Blob(
-      [csvOutput],
-      {
-        type: 'text/csv;charset=utf-8'
-      }
-    );
+    resultBlob = new Blob([csvOutput], {
+      type: 'text/csv;charset=utf-8'
+    });
 
     const found = allResults.filter(r => r.found).length;
-    resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
+
+    resultStats.textContent =
+      `Período: ${dateFrom} → ${dateTo} · ` +
+      `${found} de ${codes.length} encontrados`;
+
     showSection(resultSection);
   } catch (err) {
     errorMessage.textContent = err.message;
@@ -212,30 +185,17 @@ function downloadResult() {
   const url = URL.createObjectURL(resultBlob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'processos_resultado.csv';
-  document.body.appendChild(a);
+  a.download = 'processos_resultado_datas.csv';
   a.click();
-  a.remove();
   URL.revokeObjectURL(url);
 }
 
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) setFile(fileInput.files[0]);
-});
-
-dropzone.addEventListener('dragover', (e) => {
+// eventos
+fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+dropzone.addEventListener('dragover', e => { e.preventDefault(); });
+dropzone.addEventListener('drop', e => {
   e.preventDefault();
-  dropzone.classList.add('dragover');
-});
-
-dropzone.addEventListener('dragleave', () => {
-  dropzone.classList.remove('dragover');
-});
-
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  setFile(e.dataTransfer.files[0]);
 });
 
 processBtn.addEventListener('click', processFile);

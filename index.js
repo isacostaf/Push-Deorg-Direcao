@@ -1,3 +1,5 @@
+//index
+// so roda no terminal
 const { runChecks } = require('./src/checker');
 const { sendEmail } = require('./src/mailer');
 

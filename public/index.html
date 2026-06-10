@@ -47,14 +47,27 @@
 
     <section class="card card-loading hidden" id="loading-section">
       <div class="spinner"></div>
-      <p class="loading-title">Consultando processos no DOU...</p>
+      <p class="loading-title" id="loading-title">Consultando processos no DOU...</p>
+
+      <div class="steps-indicator">
+        <div class="step active" id="step-check">
+          <div class="step-num">1</div>
+          <span class="step-label">Verificando</span>
+        </div>
+        <div class="steps-connector"></div>
+        <div class="step" id="step-email">
+          <div class="step-num">2</div>
+          <span class="step-label">E-mail</span>
+        </div>
+      </div>
+
       <div class="progress-wrap">
         <div class="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <p class="loading-progress" id="loading-progress">0 / 0 processos</p>
       </div>
-      <p class="loading-hint">Planilhas grandes são processadas em lotes. Não feche esta página.</p>
+      <p class="loading-hint" id="loading-hint">Planilhas grandes são processadas em lotes. Não feche esta página.</p>
     </section>
 
     <section class="card card-success hidden" id="result-section">

@@ -13,6 +13,10 @@ const resetBtn = document.getElementById('reset-btn');
 const retryBtn = document.getElementById('retry-btn');
 const progressFill = document.getElementById('progress-fill');
 const loadingProgress = document.getElementById('loading-progress');
+const loadingTitle = document.getElementById('loading-title');
+const loadingHint = document.getElementById('loading-hint');
+const stepCheck = document.getElementById('step-check');
+const stepEmail = document.getElementById('step-email');
 
 const BATCH_SIZE = 5;
 
@@ -49,7 +53,29 @@ function reset() {
   fileNameEl.classList.remove('visible');
   processBtn.disabled = true;
   updateProgress(0, 0);
+  resetLoadingPhase();
   showSection(uploadSection);
+}
+
+function resetLoadingPhase() {
+  loadingTitle.textContent = 'Consultando processos no DOU...';
+  loadingHint.textContent = 'Planilhas grandes são processadas em lotes. Não feche esta página.';
+  progressFill.classList.remove('shimmer');
+  stepCheck.classList.add('active');
+  stepCheck.classList.remove('done');
+  stepCheck.querySelector('.step-num').textContent = '1';
+  stepEmail.classList.remove('active');
+}
+
+function setEmailPhase() {
+  loadingTitle.textContent = 'Enviando e-mail com os resultados...';
+  loadingHint.textContent = 'Aguarde enquanto o e-mail é preparado e enviado.';
+  loadingProgress.textContent = 'Preparando envio...';
+  progressFill.classList.add('shimmer');
+  stepCheck.classList.remove('active');
+  stepCheck.classList.add('done');
+  stepCheck.querySelector('.step-num').textContent = '✓';
+  stepEmail.classList.add('active');
 }
 
 function updateProgress(done, total) {
@@ -195,11 +221,17 @@ async function processFile() {
       }
     );
 
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: dateStr, results: allResults, csvContent: csvOutput }),
-    }).catch(() => {});
+    setEmailPhase();
+
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: dateStr, results: allResults, csvContent: csvOutput }),
+      });
+    } catch {
+      // Erro no envio do e-mail não bloqueia o resultado
+    }
 
     const found = allResults.filter(r => r.found).length;
     resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;

@@ -21,6 +21,22 @@ function getTodayBR() {
   return `${day}-${month}-${year}`;
 }
 
+function getYesterdayBR() {
+  const now = new Date();
+
+  const brOffset = -3 * 60;
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const brDate = new Date(utc + brOffset * 60000);
+
+  brDate.setDate(brDate.getDate() - 1);
+
+  const day = String(brDate.getDate()).padStart(2, '0');
+  const month = String(brDate.getMonth() + 1).padStart(2, '0');
+  const year = brDate.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
 // ----------------------------------
 // APENAS TESTE
 // FUNCAO PARA RODAR DATA ESPECIFICA
@@ -38,6 +54,14 @@ function buildUrl(processCode, dateStr) {
 
   return `https://www.in.gov.br/consulta/-/buscar/dou?q=${encoded}&s=todos&exactDate=personalizado&sortType=0&publishFrom=${dateStr}&publishTo=${dateStr}`;
 }
+
+function buildDoeUrl(processCode, dateStr) {
+  const encoded = encodeURIComponent(`" ${processCode}"`);
+
+  return `https://www.in.gov.br/consulta/-/buscar/dou?q=${encoded}&s=doe&s=do1a&exactDate=personalizado&sortType=0&publishFrom=${dateStr}&publishTo=${dateStr}`;
+}
+
+
 
 /**
  * Extrai códigos de processo da coluna B (ignora cabeçalho).
@@ -90,58 +114,74 @@ function readProcessCodesFromBuffer(buffer) {
   };
 }
 
+async function checkUrl(url) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; DOU-Monitor/1.0)',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  const html = await res.text();
+  // console.log('URL:', url);
+  // console.log('TEM NENHUM RESULTADO?', html.includes('Nenhum resultado encontrado'));
+  // console.log('TEM resultados-busca?', html.includes('resultados-busca'));
+  // console.log('TEM class resultado?', html.includes('class="resultado"'));
+
+  const noResult =
+    html.includes('Nenhum resultado encontrado') ||
+    html.includes('nenhum resultado') ||
+    html.includes('0 resultado');
+
+  const hasResult =
+    !noResult &&
+    (
+      html.includes('resultado') ||
+      html.includes('class="resultado"') ||
+      html.includes('resultados-busca')
+    );
+
+  return hasResult;
+}
+
 /**
  * Consulta um processo no DOU e verifica
  * se houve resultado para a data informada.
  */
 async function checkProcess(processCode, dateStr) {
-  const url = buildUrl(processCode, dateStr);
+  const yesterday = getYesterdayBR();
+
+  const url1 = buildUrl(processCode, dateStr);
+  const url2 = buildDoeUrl(processCode, yesterday);
+  // console.log('URL DOU:', url1);
+  // console.log('URL DOE:', url2);
+  // console.log('............');
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; DOU-Monitor/1.0)',
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!res.ok) {
-      return {
-        processCode,
-        url,
-        found: false,
-        error: `HTTP ${res.status}`,
-      };
-    }
-
-    const html = await res.text();
-
-    const noResult =
-      html.includes('Nenhum resultado encontrado') ||
-      html.includes('nenhum resultado') ||
-      html.includes('0 resultado');
-
-    const hasResult =
-      !noResult &&
-      (
-        html.includes('resultado') ||
-        html.includes('class="resultado"') ||
-        html.includes('resultados-busca')
-      );
+    const [found1, found2] = await Promise.all([
+      checkUrl(url1).catch(() => false),
+      checkUrl(url2).catch(() => false),
+    ]);
 
     return {
       processCode,
-      url,
-      found: hasResult,
+      found: found1 || found2,
+      foundInToday: found1,
+      foundInDoeYesterday: found2,
+      urls: [url1, url2],
     };
   } catch (err) {
     return {
       processCode,
-      url,
       found: false,
       error: err.message,
+      urls: [url1, url2],
     };
   }
 }

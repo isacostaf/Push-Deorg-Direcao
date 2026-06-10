@@ -1,15 +1,109 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Página 2</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitor DOU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h1>Página 2</h1>
+  <!-- <div class="overlay"></div> -->
 
-  <p>Minha nova página.</p>
+  <main class="container">
+    <header class="header">
+      <div class="badge">Diário Oficial da União</div>
+      <h1>Buscar por datas</h1>
+      <p class="subtitle">
+        Insira seu período de busca desejado.
+      </p>
+    </header>
 
-  <a href="/">Voltar</a>
+    <section class="card">
+      <h3 class="date-title">Datas</h3>
+
+      <div class="date-fields">
+        <div class="date-group">
+          <label for="data-inicio">De:</label>
+          <input type="date" id="data-inicio" />
+        </div>
+
+        <div class="date-group">
+          <label for="data-fim">Até:</label>
+          <input type="date" id="data-fim" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="upload-section">
+      <label class="dropzone" id="dropzone" for="file-input">
+        <input
+          id="file-input"
+          type="file"
+          accept=".csv"
+          hidden
+        />
+        <div class="dropzone-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 16V4m0 0L8 8m4-4l4 4"/>
+            <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+          </svg>
+        </div>
+        <p class="dropzone-title">Arraste sua planilha aqui</p>
+        <p class="dropzone-hint">ou clique para selecionar o arquivo <strong>.csv</strong></p>
+        <p class="file-name" id="file-name"></p>
+      </label>
+
+      <button class="btn btn-primary" id="process-btn" disabled>
+        Consultar DOU
+      </button>
+    </section>
+
+
+      <a href="/pagina-datas.html" class="datepage-button">
+        Buscar por datas
+      </a>
+
+
+    <section class="card card-loading hidden" id="loading-section">
+      <div class="spinner"></div>
+      <p class="loading-title">Consultando processos no DOU...</p>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p class="loading-progress" id="loading-progress">0 / 0 processos</p>
+      </div>
+      <p class="loading-hint">Planilhas grandes são processadas em lotes. Não feche esta página.</p>
+    </section>
+
+    <section class="card card-success hidden" id="result-section">
+      <div class="success-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <p class="success-title">Planilha processada com sucesso!</p>
+      <p class="success-stats" id="result-stats"></p>
+      <button class="btn btn-download" id="download-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3v12m0 0l4-4m-4 4L8 11"/>
+          <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+        </svg>
+        Baixar processos_resultado.csv
+      </button>
+      <button class="btn btn-ghost" id="reset-btn">Enviar outra planilha</button>
+    </section>
+
+    <section class="card card-error hidden" id="error-section">
+      <p class="error-title">Erro ao processar</p>
+      <p class="error-message" id="error-message"></p>
+      <button class="btn btn-ghost" id="retry-btn">Tentar novamente</button>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

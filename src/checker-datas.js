@@ -40,7 +40,7 @@ function readProcessCodes() {
   const content = fs.readFileSync(csvPath, 'utf8');
 
   const rows = parse(content, {
-    delimiter: ',',
+    delimiter: ';',
     skip_empty_lines: true
   });
 
@@ -51,7 +51,7 @@ function readProcessCodesFromBuffer(buffer) {
   const content = buffer.toString('utf8');
 
   const rows = parse(content, {
-    delimiter: ',',
+    delimiter: ';',
     skip_empty_lines: true
   });
 
@@ -184,14 +184,16 @@ function saveResultsCsv(results) {
   const content = fs.readFileSync(inputPath, 'utf8');
 
   let rows = parse(content, {
-    delimiter: ',',
+    delimiter: ';',
     skip_empty_lines: true
   });
 
   rows = applyResultsToRows(rows, results);
   rows = markDuplicatesInRows(rows);
 
-  const csv = stringify(rows);
+  const csv = stringify(rows, {
+    delimiter: ';'
+  });
 
   fs.writeFileSync(outputPath, csv);
 
@@ -249,7 +251,9 @@ async function runChecksFromBuffer(buffer) {
   let updatedRows = applyResultsToRows(rows, results);
   updatedRows = markDuplicatesInRows(updatedRows);
 
-  const csvContent = stringify(updatedRows);
+  const csvContent = stringify(updatedRows, {
+    delimiter: ';'
+  });
 
   const outputBuffer = Buffer.from(csvContent, 'utf8');
 

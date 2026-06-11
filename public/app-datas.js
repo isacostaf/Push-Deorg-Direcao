@@ -67,7 +67,7 @@ function updateProgress(done, total) {
 }
 
 function parseCsv(text) {
-  return text.trim().split(/\r?\n/).map(line => line.split(','));
+  return text.trim().split(/\r?\n/).map(line => line.split(';'));
 }
 
 function extractCodes(rows) {
@@ -115,7 +115,7 @@ function markDuplicatesInRows(rows) {
 }
 
 function rowsToCsv(rows) {
-  return rows.map(r => r.join(',')).join('\n');
+  return rows.map(r => r.join(';')).join('\n');
 }
 
 // 🔵 NOVA API

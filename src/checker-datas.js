@@ -66,6 +66,10 @@ function readProcessCodesFromBuffer(buffer) {
  * se houve resultado para a data informada.
  */
 async function checkProcess(processCode, dateFrom, dateTo) {
+  // console.log('checkProcess recebeu:');
+  // console.log('dateFrom =', dateFrom);
+  // console.log('dateTo   =', dateTo);
+
   const url = buildUrl(processCode, dateFrom, dateTo);
 
   try {
@@ -213,8 +217,16 @@ async function checkAllProcesses(codes, dateStr) {
  * Consulta um lote de processos em paralelo (sem delay).
  * Usado pela API web — cada lote deve caber no timeout de 10s do Vercel Hobby.
  */
-async function checkBatchDatas(codes, dateStr) {
-  return Promise.all(codes.map(code => checkProcess(code, dateStr)));
+// async function checkBatchDatas(codes, dateStr) {
+//   return Promise.all(codes.map(code => checkProcess(code, dateStr)));
+// }
+
+async function checkBatchDatas(codes, dateFrom, dateTo) {
+  console.log('\n========== CHECK BATCH DATAS ==========');
+  console.log('CHECK BATCH DATAS');
+  console.log('dateFrom:', dateFrom);
+  console.log('dateTo:', dateTo);
+  return Promise.all(codes.map(code => checkProcess(code, dateFrom, dateTo)));
 }
 
 /**

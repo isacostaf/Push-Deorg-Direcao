@@ -63,6 +63,12 @@ async function handleCheckDatas(req, res) {
   const body = await readBody(req);
   const { codes, dateFrom, dateTo } = JSON.parse(body.toString());
 
+    console.log('\n========== CHECK DATAS ==========');
+  console.log('dateFrom:', dateFrom);
+  console.log('dateTo:', dateTo);
+  console.log('codes:', codes);
+  console.log('=================================\n');
+
   const results = await checkBatchDatas(codes, dateFrom, dateTo);
 
   res.writeHead(200, { 'Content-Type': 'application/json' });

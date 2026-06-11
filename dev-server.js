@@ -1,9 +1,13 @@
+require('dotenv').config();
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const { checkBatch, getTodayBR } = require('./src/checker');
 const { checkBatchDatas } = require('./src/checker-datas');
+const handleCheckBatch = require('./api/check-batch');
+const handleSendEmail = require('./api/send-email');
 
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
@@ -22,13 +26,22 @@ const MIME = {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    req.on('data', chunk => chunks.push(chunk));
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
 
-/* ================= STATIC ================= */
+function adaptRes(res) {
+  res.status = (code) => ({
+    json: (data) => {
+      res.writeHead(code, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    },
+  });
+  return res;
+}
+
 function serveStatic(req, res) {
   const urlPath = req.url.split('?')[0];
   const filePath = path.join(PUBLIC, urlPath === '/' ? 'index.html' : urlPath);
@@ -81,12 +94,21 @@ async function handleCheckDatas(req, res) {
 
 /* ================= SERVER ================= */
 const server = http.createServer(async (req, res) => {
+  adaptRes(res);
+
   if (req.method === 'POST' && req.url === '/api/check-batch') {
     return handleCheckBatch(req, res);
   }
 
   if (req.method === 'POST' && req.url === '/api/check-datas') {
     return handleCheckDatas(req, res);
+  }
+
+  if (req.method === 'POST' && req.url === '/api/send-email') {
+    const body = await readBody(req);
+    req.body = JSON.parse(body.toString());
+    await handleSendEmail(req, res);
+    return;
   }
 
   if (req.method === 'GET') {

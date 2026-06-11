@@ -1,7 +1,9 @@
-//index
-// so roda no terminal
+require('dotenv').config();
+
+const path = require('path');
+
 const { runChecks } = require('./src/checker');
-const { sendEmail } = require('./src/mailer');
+const { enviarEmail } = require('./src/email');
 
 async function main() {
   console.log('🚀 Iniciando Monitor DOU...\n');
@@ -14,7 +16,11 @@ async function main() {
     console.log(`  ${r.processCode} → ${status}`);
   }
 
-  //await sendEmail(date, results);
+  console.log('\n📧 Enviando email...');
+  const csvPath = path.join(process.cwd(), 'processos_resultado.csv');
+  await enviarEmail({ date, results, csvPath });
+  console.log('✅ Email enviado.');
+
   console.log('\n✅ Monitor DOU finalizado.');
 }
 

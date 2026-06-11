@@ -55,6 +55,7 @@ async function handleCheckBatch(req, res) {
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ date, results }));
+  
 }
 
 /* ================= NOVO (DATAS) ================= */

@@ -17,9 +17,12 @@ const loadingProgress = document.getElementById('loading-progress');
 
 const BATCH_SIZE = 5;
 
-// 🔵 NOVO: datas do sistema novo
-const dateFrom = '01-06-2026';
-const dateTo = '10-06-2026';
+// // 🔵 NOVO: datas do sistema novo
+// const dateFrom = '01-06-2026';
+// const dateTo = '10-06-2026';
+
+const dateFromInput = document.getElementById('data-inicio');
+const dateToInput = document.getElementById('data-fim');
 
 let selectedFile = null;
 let resultBlob = null;
@@ -131,8 +134,23 @@ async function checkBatch(codes, dateFrom, dateTo) {
   return response.json();
 }
 
+function formatDateToBR(date) {
+  const [year, month, day] = date.split('-');
+  return `${day}-${month}-${year}`;
+}
+
 async function processFile() {
   if (!selectedFile) return;
+
+  const dateFrom = dateFromInput.value;
+  const dateTo = dateToInput.value;
+
+  if (!dateFrom || !dateTo) {
+    throw new Error('Selecione as datas inicial e final.');
+  }
+
+  const dateFromBR = formatDateToBR(dateFrom);
+  const dateToBR = formatDateToBR(dateTo);
 
   showSection(loadingSection);
 
@@ -152,7 +170,11 @@ async function processFile() {
     for (let i = 0; i < codes.length; i += BATCH_SIZE) {
       const batch = codes.slice(i, i + BATCH_SIZE);
 
-      const { results } = await checkBatch(batch, dateFrom, dateTo);
+      const { results } = await checkBatch(
+        batch,
+        dateFromBR,
+        dateToBR
+      );
 
       allResults.push(...results);
       updateProgress(allResults.length, codes.length);
@@ -163,14 +185,15 @@ async function processFile() {
 
     const csvOutput = rowsToCsv(updatedRows);
 
-    resultBlob = new Blob([csvOutput], {
-      type: 'text/csv;charset=utf-8'
-    });
+    resultBlob = new Blob(
+      [csvOutput],
+      { type: 'text/csv;charset=utf-8' }
+    );
 
     const found = allResults.filter(r => r.found).length;
 
     resultStats.textContent =
-      `Período: ${dateFrom} → ${dateTo} · ` +
+      `Período: ${dateFromBR} → ${dateToBR} · ` +
       `${found} de ${codes.length} encontrados`;
 
     showSection(resultSection);

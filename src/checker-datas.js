@@ -1,12 +1,13 @@
+// checker-datas
 const fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const { stringify } = require('csv-stringify/sync');
 const path = require('path');
 
-function buildUrl(processCode, dateStr) {
+function buildUrl(processCode, dateFrom, dateTo) {
   const encoded = encodeURIComponent(`" ${processCode}"`);
 
-  return `https://www.in.gov.br/consulta/-/buscar/dou?q=${encoded}&s=todos&exactDate=personalizado&sortType=0&publishFrom=01-06-2026&publishTo=10-06-2026`;
+  return `https://www.in.gov.br/consulta/-/buscar/dou?q=${encoded}&s=todos&exactDate=personalizado&sortType=0&publishFrom=${dateFrom}&publishTo=${dateTo}`;
 }
 
 /**
@@ -64,8 +65,8 @@ function readProcessCodesFromBuffer(buffer) {
  * Consulta um processo no DOU e verifica
  * se houve resultado para a data informada.
  */
-async function checkProcess(processCode, dateStr) {
-  const url = buildUrl(processCode, dateStr);
+async function checkProcess(processCode, dateFrom, dateTo) {
+  const url = buildUrl(processCode, dateFrom, dateTo);
 
   try {
     const res = await fetch(url, {

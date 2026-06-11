@@ -1,5 +1,3 @@
-//app.js
-
 const fileInput = document.getElementById('file-input');
 const dropzone = document.getElementById('dropzone');
 const fileNameEl = document.getElementById('file-name');
@@ -15,12 +13,16 @@ const resetBtn = document.getElementById('reset-btn');
 const retryBtn = document.getElementById('retry-btn');
 const progressFill = document.getElementById('progress-fill');
 const loadingProgress = document.getElementById('loading-progress');
-const loadingTitle = document.getElementById('loading-title');
-const loadingHint = document.getElementById('loading-hint');
-const stepCheck = document.getElementById('step-check');
-const stepEmail = document.getElementById('step-email');
+
 
 const BATCH_SIZE = 5;
+
+// // 🔵 NOVO: datas do sistema novo
+// const dateFrom = '01-06-2026';
+// const dateTo = '10-06-2026';
+
+const dateFromInput = document.getElementById('data-inicio');
+const dateToInput = document.getElementById('data-fim');
 
 let selectedFile = null;
 let resultBlob = null;
@@ -55,29 +57,7 @@ function reset() {
   fileNameEl.classList.remove('visible');
   processBtn.disabled = true;
   updateProgress(0, 0);
-  resetLoadingPhase();
   showSection(uploadSection);
-}
-
-function resetLoadingPhase() {
-  loadingTitle.textContent = 'Consultando processos no DOU...';
-  loadingHint.textContent = 'Planilhas grandes são processadas em lotes. Não feche esta página.';
-  progressFill.classList.remove('shimmer');
-  stepCheck.classList.add('active');
-  stepCheck.classList.remove('done');
-  stepCheck.querySelector('.step-num').textContent = '1';
-  stepEmail.classList.remove('active');
-}
-
-function setEmailPhase() {
-  loadingTitle.textContent = 'Enviando e-mail com os resultados...';
-  loadingHint.textContent = 'Aguarde enquanto o e-mail é preparado e enviado.';
-  loadingProgress.textContent = 'Preparando envio...';
-  progressFill.classList.add('shimmer');
-  stepCheck.classList.remove('active');
-  stepCheck.classList.add('done');
-  stepCheck.querySelector('.step-num').textContent = '✓';
-  stepEmail.classList.add('active');
 }
 
 function updateProgress(done, total) {
@@ -87,41 +67,24 @@ function updateProgress(done, total) {
 }
 
 function parseCsv(text) {
-  return text
-    .trim()
-    .split(/\r?\n/)
-    .map(line => line.split(/[;,]/));
+  return text.trim().split(/\r?\n/).map(line => line.split(','));
 }
 
 function extractCodes(rows) {
   const codes = [];
-
   for (const row of rows.slice(1)) {
-    if (
-      row &&
-      row[1] !== undefined &&
-      row[1] !== null &&
-      row[1] !== ''
-    ) {
-      codes.push(String(row[1]).trim());
-    }
+    if (row?.[1]) codes.push(String(row[1]).trim());
   }
-
   return codes;
 }
 
 function applyResultsToRows(rows, results) {
   if (!rows[0]) rows[0] = [];
-
   rows[0][2] = 'check';
 
   results.forEach((result, index) => {
     const rowIndex = index + 1;
-
-    if (!rows[rowIndex]) {
-      rows[rowIndex] = [];
-    }
-
+    if (!rows[rowIndex]) rows[rowIndex] = [];
     rows[rowIndex][2] = result.found ? 'sim' : 'nao';
   });
 
@@ -136,18 +99,14 @@ function markDuplicatesInRows(rows) {
 
   for (const row of data) {
     const process = row[1];
-    const status = String(row[2] || '').toLowerCase();
-
-    if (status === 'sim') {
+    if (row[2] === 'sim') {
       countMap.set(process, (countMap.get(process) || 0) + 1);
     }
   }
 
   for (const row of data) {
     const process = row[1];
-    const status = String(row[2] || '').toLowerCase();
-
-    if (status === 'sim' && countMap.get(process) > 1) {
+    if (row[2] === 'sim' && countMap.get(process) > 1) {
       row[2] = 'verificar';
     }
   }
@@ -156,87 +115,87 @@ function markDuplicatesInRows(rows) {
 }
 
 function rowsToCsv(rows) {
-  return rows.map(row => row.join(';')).join('\n');
+  return rows.map(r => r.join(',')).join('\n');
 }
 
-async function checkBatch(codes) {
-  const response = await fetch('/api/check-batch', {
+// 🔵 NOVA API
+async function checkBatch(codes, dateFrom, dateTo) {
+  const response = await fetch('/api/check-datas', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ codes }),
+    body: JSON.stringify({ codes, dateFrom, dateTo }),
   });
 
   if (!response.ok) {
-    let message = 'Erro ao consultar o DOU.';
-    try {
-      const data = await response.json();
-      message = data.error || message;
-    } catch {
-      // resposta não é JSON
-    }
-    throw new Error(message);
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Erro ao consultar datas.');
   }
 
   return response.json();
 }
 
+function formatDateToBR(date) {
+  const [year, month, day] = date.split('-');
+  return `${day}-${month}-${year}`;
+}
+
 async function processFile() {
   if (!selectedFile) return;
+
+  const dateFrom = dateFromInput.value;
+  const dateTo = dateToInput.value;
+
+  if (!dateFrom || !dateTo) {
+    throw new Error('Selecione as datas inicial e final.');
+  }
+
+  const dateFromBR = formatDateToBR(dateFrom);
+  const dateToBR = formatDateToBR(dateTo);
 
   showSection(loadingSection);
 
   try {
     const csvText = await selectedFile.text();
-
     const rows = parseCsv(csvText);
-
     const codes = extractCodes(rows);
 
-    if (codes.length === 0) {
-      throw new Error('Nenhum código de processo encontrado na coluna B.');
+    if (!codes.length) {
+      throw new Error('Nenhum código encontrado.');
     }
 
     updateProgress(0, codes.length);
 
     const allResults = [];
-    let dateStr = '';
 
     for (let i = 0; i < codes.length; i += BATCH_SIZE) {
       const batch = codes.slice(i, i + BATCH_SIZE);
-      const { date, results } = await checkBatch(batch);
 
-      dateStr = date;
+      const { results } = await checkBatch(
+        batch,
+        dateFromBR,
+        dateToBR
+      );
+
       allResults.push(...results);
       updateProgress(allResults.length, codes.length);
     }
 
     let updatedRows = applyResultsToRows(rows, allResults);
-
     updatedRows = markDuplicatesInRows(updatedRows);
 
     const csvOutput = rowsToCsv(updatedRows);
 
     resultBlob = new Blob(
       [csvOutput],
-      {
-        type: 'text/csv;charset=utf-8'
-      }
+      { type: 'text/csv;charset=utf-8' }
     );
 
-    setEmailPhase();
-
-    try {
-      await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateStr, results: allResults, csvContent: csvOutput }),
-      });
-    } catch {
-      // Erro no envio do e-mail não bloqueia o resultado
-    }
-
     const found = allResults.filter(r => r.found).length;
-    resultStats.textContent = `Data: ${dateStr} · ${found} de ${codes.length} processo(s) publicado(s) no DOU.`;
+
+    resultStats.textContent =
+      `Período: ${dateFromBR} → ${dateToBR} · ` +
+      `${found} de ${codes.length} encontrados`;
+
     showSection(resultSection);
   } catch (err) {
     errorMessage.textContent = err.message;
@@ -250,30 +209,17 @@ function downloadResult() {
   const url = URL.createObjectURL(resultBlob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'processos_resultado.csv';
-  document.body.appendChild(a);
+  a.download = 'processos_resultado_datas.csv';
   a.click();
-  a.remove();
   URL.revokeObjectURL(url);
 }
 
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) setFile(fileInput.files[0]);
-});
-
-dropzone.addEventListener('dragover', (e) => {
+// eventos
+fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+dropzone.addEventListener('dragover', e => { e.preventDefault(); });
+dropzone.addEventListener('drop', e => {
   e.preventDefault();
-  dropzone.classList.add('dragover');
-});
-
-dropzone.addEventListener('dragleave', () => {
-  dropzone.classList.remove('dragover');
-});
-
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  setFile(e.dataTransfer.files[0]);
 });
 
 processBtn.addEventListener('click', processFile);

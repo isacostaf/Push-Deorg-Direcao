@@ -4,6 +4,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+const { checkBatch, getTodayBR } = require('./src/checker');
+const { checkBatchDatas } = require('./src/checker-datas');
 const handleCheckBatch = require('./api/check-batch');
 const handleSendEmail = require('./api/send-email');
 
@@ -44,33 +46,62 @@ function serveStatic(req, res) {
   const urlPath = req.url.split('?')[0];
   const filePath = path.join(PUBLIC, urlPath === '/' ? 'index.html' : urlPath);
 
-  if (!filePath.startsWith(PUBLIC)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
   fs.readFile(filePath, (err, data) => {
     if (err) {
       res.writeHead(404);
-      res.end('Not found');
-      return;
+      return res.end('Not found');
     }
 
-    const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    const ext = path.extname(filePath);
+    res.writeHead(200, { 'Content-Type': MIME[ext] });
     res.end(data);
   });
 }
 
+/* ================= ANTIGO ================= */
+async function handleCheckBatch(req, res) {
+  const body = await readBody(req);
+  const { codes } = JSON.parse(body.toString());
+
+  const date = getTodayBR();
+  const results = await checkBatch(codes, date);
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ date, results }));
+  
+}
+
+/* ================= NOVO (DATAS) ================= */
+async function handleCheckDatas(req, res) {
+  const body = await readBody(req);
+  const { codes, dateFrom, dateTo } = JSON.parse(body.toString());
+
+    console.log('\n========== CHECK DATAS ==========');
+  console.log('dateFrom:', dateFrom);
+  console.log('dateTo:', dateTo);
+  console.log('codes:', codes);
+  console.log('=================================\n');
+
+  const results = await checkBatchDatas(codes, dateFrom, dateTo);
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    dateFrom,
+    dateTo,
+    results
+  }));
+}
+
+/* ================= SERVER ================= */
 const server = http.createServer(async (req, res) => {
   adaptRes(res);
 
   if (req.method === 'POST' && req.url === '/api/check-batch') {
-    const body = await readBody(req);
-    req.body = JSON.parse(body.toString());
-    await handleCheckBatch(req, res);
-    return;
+    return handleCheckBatch(req, res);
+  }
+
+  if (req.method === 'POST' && req.url === '/api/check-datas') {
+    return handleCheckDatas(req, res);
   }
 
   if (req.method === 'POST' && req.url === '/api/send-email') {
@@ -81,8 +112,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET') {
-    serveStatic(req, res);
-    return;
+    return serveStatic(req, res);
   }
 
   res.writeHead(405);
@@ -90,5 +120,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🚀 Dev server rodando em http://localhost:${PORT}\n`);
+  console.log(`🚀 Rodando em http://localhost:${PORT}`);
 });

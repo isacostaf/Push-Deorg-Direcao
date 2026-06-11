@@ -14,6 +14,7 @@ const retryBtn = document.getElementById('retry-btn');
 const progressFill = document.getElementById('progress-fill');
 const loadingProgress = document.getElementById('loading-progress');
 
+
 const BATCH_SIZE = 5;
 
 // 🔵 NOVO: datas do sistema novo

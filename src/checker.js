@@ -334,7 +334,6 @@ async function runChecks() {
 
 module.exports = {
   runChecks,
-  runChecksFromBuffer,
   checkBatch,
   getTodayBR,
 };

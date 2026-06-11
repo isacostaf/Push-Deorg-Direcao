@@ -6,7 +6,7 @@ const path = require('path');
 
 const { checkBatch, getTodayBR } = require('./src/checker');
 const { checkBatchDatas } = require('./src/checker-datas');
-const handleCheckBatch = require('./api/check-batch');
+const handleCheckBatchAPI = require('./api/check-batch');
 const handleSendEmail = require('./api/send-email');
 
 const PUBLIC = path.join(__dirname, 'public');

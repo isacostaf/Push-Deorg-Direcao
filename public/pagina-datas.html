@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -16,11 +15,27 @@
   <main class="container">
     <header class="header">
       <div class="badge">Diário Oficial da União</div>
-      <h1>Monitor de Processos</h1>
+      <h1>Buscar por datas</h1>
       <p class="subtitle">
-        Envie sua planilha com os códigos na coluna B e receba o resultado da consulta ao DOU.
+        Insira seu período de busca desejado.
       </p>
     </header>
+
+    <section class="card">
+      <h3 class="date-title">Datas</h3>
+
+      <div class="date-fields">
+        <div class="date-group">
+          <label for="data-inicio">De:</label>
+          <input type="date" id="data-inicio" />
+        </div>
+
+        <div class="date-group">
+          <label for="data-fim">Até:</label>
+          <input type="date" id="data-fim" />
+        </div>
+      </div>
+    </section>
 
     <section class="card" id="upload-section">
       <label class="dropzone" id="dropzone" for="file-input">
@@ -54,27 +69,14 @@
 
     <section class="card card-loading hidden" id="loading-section">
       <div class="spinner"></div>
-      <p class="loading-title" id="loading-title">Consultando processos no DOU...</p>
-
-      <div class="steps-indicator">
-        <div class="step active" id="step-check">
-          <div class="step-num">1</div>
-          <span class="step-label">Verificando</span>
-        </div>
-        <div class="steps-connector"></div>
-        <div class="step" id="step-email">
-          <div class="step-num">2</div>
-          <span class="step-label">E-mail</span>
-        </div>
-      </div>
-
+      <p class="loading-title">Consultando processos no DOU...</p>
       <div class="progress-wrap">
         <div class="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <p class="loading-progress" id="loading-progress">0 / 0 processos</p>
       </div>
-      <p class="loading-hint" id="loading-hint">Planilhas grandes são processadas em lotes. Não feche esta página.</p>
+      <p class="loading-hint">Planilhas grandes são processadas em lotes. Não feche esta página.</p>
     </section>
 
     <section class="card card-success hidden" id="result-section">
@@ -101,7 +103,6 @@
       <button class="btn btn-ghost" id="retry-btn">Tentar novamente</button>
     </section>
   </main>
-  <script src="/app.js"></script>
-  <script src="/app.js"></script>
+  <script src="/app-datas.js"></script>
 </body>
 </html>

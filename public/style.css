@@ -83,6 +83,29 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
+.datepage-button {
+  display: inline-block;
+  width: fit-content;
+
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+
+  color: var(--green-900);
+  text-decoration: none;
+
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(13, 40, 24, 0.15);
+
+  border-radius: 999px;
+  padding: 5px 14px;
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  margin: 0 auto; /* centraliza */
+}
+
 .header h1 {
   font-size: clamp(1.6rem, 5vw, 2rem);
   font-weight: 700;
@@ -436,6 +459,42 @@ body {
   .dropzone {
     padding: 28px 16px;
   }
+}
+
+.date-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--green-900);
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.date-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.date-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--green-900);
+}
+
+.date-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(13, 40, 24, 0.15);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  background: rgba(255,255,255,0.9);
 }
 
 .header h1,

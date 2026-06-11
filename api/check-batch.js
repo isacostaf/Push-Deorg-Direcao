@@ -1,3 +1,5 @@
+//check-batch.js 
+
 const { checkBatch, getTodayBR } = require('../src/checker');
 
 const MAX_BATCH_SIZE = 5;

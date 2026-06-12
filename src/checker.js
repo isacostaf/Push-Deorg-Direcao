@@ -9,7 +9,6 @@ const path = require('path');
  * Retorna a data atual no formato DD-MM-AAAA
  * ajustada para o fuso horário de Brasília.
 */
- 
 function getTodayBR() {
   const now = new Date();
 
@@ -39,6 +38,7 @@ function getYesterdayBR() {
 
   return `${day}-${month}-${year}`;
 }
+
 
 // ----------------------------------
 // APENAS TESTE

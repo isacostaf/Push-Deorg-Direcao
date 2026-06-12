@@ -45,24 +45,40 @@ function renderBlocoAto(r) {
     </div>`;
 }
 
+function renderLinkConsulta() {
+  const linkConsulta = "https://v0-appsministeriodadefesa.vercel.app/";
+
+  return `
+    <p>Segue abaixo o link contendo a relação de todos os aplicativos disponíveis para utilização:</p>
+    <ul>
+      <li><a href="${linkConsulta}" style="color: #0004ff;">${linkConsulta}</a></li>
+    </ul>
+  `;
+}
+
 function montarCorpoEmail(date, results) {
   const publicados = results.filter(r => r.found && !r.error);
   const total = results.length;
   const dataFormatada = date.replace(/-/g, '/');
-
   const blocosAtos = publicados.map(renderBlocoAto).join('');
+  const linkConsulta = renderLinkConsulta();
+  const nomeDiretor = "Erika";
+
 
   if (publicados.length === 0) {
     return `
       <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
         <img src="cid:email-logo" style="width:100%;max-width:680px;display:block;margin-bottom:20px;" alt="" />
-        <p>Prezada Sra. Diretora Erika,</p>
+        <p>Prezada Sra. Diretora ${nomeDiretor},</p>
         <p>
           Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
           realizada em <strong>${dataFormatada}</strong> verificou
           <strong>${total} processos</strong> e não identificou publicações.
         </p>
         <p>Esta busca foi realizada de maneira autônoma e não substitui uma pesquisa detalhada no Diário Oficial.</p>
+        <p>${linkConsulta}</p>
+        <p>Atenciosamente,</p>
+        <p>Equipe de Monitoramento do DOU.</p>
       </div>`;
   }
 
@@ -70,7 +86,7 @@ function montarCorpoEmail(date, results) {
   return `
     <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
       <img src="cid:email-logo" style="width:100%;max-width:680px;display:block;margin-bottom:20px;" alt="" />
-      <p>Prezada Sra. Diretora Erika,</p>
+      <p>Prezada Sra. Diretora ${nomeDiretor},</p>
       <p>
         Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
         realizada em <strong>${dataFormatada}</strong> identificou
@@ -83,13 +99,16 @@ function montarCorpoEmail(date, results) {
       <p style="font-size:13px;color:#6b7280;margin-top:24px;">
         Esta busca foi realizada de maneira autônoma e não substitui uma pesquisa detalhada no Diário Oficial.
       </p>
-    </div>`;
+      <p>${linkConsulta}</p>
+      <p>Atenciosamente,</p>
+      <p>Equipe de Monitoramento do DOU.</p>
+      </div>`;
   }
 
   return `
     <div style="font-family:Arial,sans-serif;color:#112b32;line-height:1.6;max-width:680px;">
       <img src="cid:email-logo" style="width:100%;max-width:680px;display:block;margin-bottom:20px;" alt="" />
-      <p>Prezada Sra. Diretora Erika,</p>
+      <p>Prezada Sra. Diretora ${nomeDiretor},</p>
       <p>
         Informamos que a busca autônoma no <strong>Diário Oficial da União</strong>
         realizada em <strong>${dataFormatada}</strong> identificou
@@ -102,6 +121,9 @@ function montarCorpoEmail(date, results) {
       <p style="font-size:13px;color:#6b7280;margin-top:24px;">
         Esta busca foi realizada de maneira autônoma e não substitui uma pesquisa detalhada no Diário Oficial.
       </p>
+      <p>${linkConsulta}</p>
+      <p>Atenciosamente,</p>
+      <p>Equipe de Monitoramento do DOU.</p>
     </div>`;
 }
 
@@ -146,24 +168,29 @@ async function configurarEnvioEmail() {
 }
 
 async function enviarEmail({ date, results }) {
-  const { transporter, emailFrom, destinatarios } = await configurarEnvioEmail();
+    const publicados = results.filter(r => r.found && !r.error);
+    if (publicados.length === 0) {
+      console.log('Nenhuma publicação encontrada. Email não será enviado.');
+      return;
+    }
+    const { transporter, emailFrom, destinatarios } = await configurarEnvioEmail();
 
-  const dataFormatada = date.replace(/-/g, '/');
+    const dataFormatada = date.replace(/-/g, '/');
 
-  const resultadosComAto = await enriquecerComAto(results);
+    const resultadosComAto = await enriquecerComAto(results);
 
-  const logoPath  = path.join(__dirname, '..', 'public', 'email.png');
-  const attachments = fs.existsSync(logoPath)
-    ? [{ filename: 'email.png', path: logoPath, cid: 'email-logo' }]
-    : [];
+    const logoPath  = path.join(__dirname, '..', 'public', 'email.png');
+    const attachments = fs.existsSync(logoPath)
+      ? [{ filename: 'email.png', path: logoPath, cid: 'email-logo' }]
+      : [];
 
-  await transporter.sendMail({
-    from: emailFrom,
-    to: destinatarios.join(', '),
-    subject: `Monitor DOU - ${dataFormatada}`,
-    html: montarCorpoEmail(date, resultadosComAto),
-    attachments,
-  });
+    await transporter.sendMail({
+      from: emailFrom,
+      to: destinatarios.join(', '),
+      subject: `Monitor DOU - ${dataFormatada}`,
+      html: montarCorpoEmail(date, resultadosComAto),
+      attachments,
+    });
 }
 
 module.exports = { enviarEmail, montarCorpoEmail };

@@ -8,7 +8,7 @@ const path = require('path');
 /**
  * Retorna a data atual no formato DD-MM-AAAA
  * ajustada para o fuso horário de Brasília.
-*/ 
+*/
 function getTodayBR() {
   const now = new Date();
 
@@ -45,7 +45,7 @@ function getYesterdayBR() {
 // FUNCAO PARA RODAR DATA ESPECIFICA
 // DESCOMENTAR OU COMENTAR
 // function getTodayBR() {
-//   return '01-06-2026'
+//   return '01-06-2026';
 // }
 
 /**

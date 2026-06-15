@@ -23,6 +23,7 @@ function getTodayBR() {
   return `${day}-${month}-${year}`;
 }
 
+
 function getYesterdayBR() {
   const now = new Date();
 

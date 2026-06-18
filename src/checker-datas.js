@@ -106,16 +106,26 @@ async function checkProcess(processCode, dateFrom, dateTo) {
         html.includes('resultados-busca')
       );
 
-    console.log('🔗 URL:', url); // 👈 AQUI
+    console.log('🔗 URL:', url);
     console.log('📋 Processo:', processCode);
     console.log('❌ noResult:', noResult);
     console.log('✅ hasResult:', hasResult);
     console.log('--------------------');
 
+    if (!hasResult) {
+      return { processCode, url, found: false, atoUrl: null };
+    }
+
+    const urlTitleMatch = html.match(/"urlTitle"\s*:\s*"([^"]+)"/);
+    const atoUrl = urlTitleMatch
+      ? `https://www.in.gov.br/web/dou/-/${urlTitleMatch[1]}`
+      : null;
+
     return {
       processCode,
       url,
-      found: hasResult,
+      found: true,
+      atoUrl,
     };
   } catch (err) {
     return {

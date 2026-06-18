@@ -67,7 +67,7 @@ function updateProgress(done, total) {
 }
 
 function parseCsv(text) {
-  return text.trim().split(/\r?\n/).map(line => line.split(';'));
+  return text.trim().split(/\r?\n/).map(line => line.split(/[;,]/));
 }
 
 function extractCodes(rows) {
@@ -142,19 +142,18 @@ function formatDateToBR(date) {
 async function processFile() {
   if (!selectedFile) return;
 
-  const dateFrom = dateFromInput.value;
-  const dateTo = dateToInput.value;
-
-  if (!dateFrom || !dateTo) {
-    throw new Error('Selecione as datas inicial e final.');
-  }
-
-  const dateFromBR = formatDateToBR(dateFrom);
-  const dateToBR = formatDateToBR(dateTo);
-
   showSection(loadingSection);
 
   try {
+    const dateFrom = dateFromInput.value;
+    const dateTo = dateToInput.value;
+
+    if (!dateFrom || !dateTo) {
+      throw new Error('Selecione as datas inicial e final.');
+    }
+
+    const dateFromBR = formatDateToBR(dateFrom);
+    const dateToBR = formatDateToBR(dateTo);
     const csvText = await selectedFile.text();
     const rows = parseCsv(csvText);
     const codes = extractCodes(rows);
@@ -203,8 +202,23 @@ async function processFile() {
   }
 }
 
-function downloadResult() {
+async function downloadResult() {
   if (!resultBlob) return;
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'processos_resultado_datas.csv',
+        types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(resultBlob);
+      await writable.close();
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+    }
+  }
 
   const url = URL.createObjectURL(resultBlob);
   const a = document.createElement('a');

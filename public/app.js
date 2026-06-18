@@ -244,16 +244,29 @@ async function processFile() {
   }
 }
 
-function downloadResult() {
-  if (!resultBlob) return;
+async function downloadResult() {
+    if (!resultBlob) return;
+
+    if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'processos_resultado.csv',
+        types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(resultBlob);
+      await writable.close();
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+    }
+  }
 
   const url = URL.createObjectURL(resultBlob);
   const a = document.createElement('a');
   a.href = url;
   a.download = 'processos_resultado.csv';
-  document.body.appendChild(a);
   a.click();
-  a.remove();
   URL.revokeObjectURL(url);
 }
 
